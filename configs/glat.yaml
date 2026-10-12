@@ -1,0 +1,69 @@
+# Configuration for the Gecarcinus lateralis dataset.
+#
+# Two experiments, analyzed separately as two units: the molt cycle induced by multiple leg
+# autotomy (MLA) and the time course after eyestalk ablation (ESA). Every path is relative to
+# base; base "." is the directory the pipeline is run from (the repository root, as in the
+# README), and the BASE environment variable overrides it. Each key is explained in
+# pipeline/configs/example.yaml; the comments here give the values their meaning in this study.
+name: glat                                  # prefix of the tables that span both experiments
+base: "."
+quant_dir: data/glat/salmon_output          # one subdirectory per library, named by the sheet's filename column, each holding quant.sf
+sample_sheet: data/glat/samples.tsv         # 115 libraries: sampleid, filename, experiment, stage
+sample_id_col: sampleid
+quant_subdir_col: filename
+level_col: stage                            # MLA: IM, EP, MP, LP, PM, BL; ESA: D0 to D19, or female
+unit_col: experiment                        # MLA or ESA
+panel: data/glat/glat_rtk_genes.tsv         # the 17 receptor tyrosine kinase transcripts, one per gene
+panel_aggregate: false                      # each panel gene is exactly one transcript
+panel_tag: rtk                              # panel tables are named <unit>_rtk_letters.tsv and so on
+output_dir: results/glat
+alpha: 0.05                                 # a gene is molt-regulated when its targeted false discovery rate is below 0.05
+pairwise_adjust: holm                       # Holm adjustment of the pairwise stage comparisons within each molt-regulated gene
+shrinkage: normal                           # fold-change shrinkage used for the supplementary tables and plots
+units:
+  MLA:                                      # molt cycle induced by multiple leg autotomy
+    levels: [IM, EP, MP, LP, PM, BL]        # intermolt, early premolt, mid-premolt, late premolt, postmolt, blocked
+    outside_stage_test: [BL]                # blocked animals keep their own mean in the model but are not part of
+                                            # the question "does expression change across the molt stages"
+    closing_contrast: true                  # the supplement also compares IM against PM (the cycle closes)
+    extra_contrasts: [[BL, IM], [BL, EP], [BL, MP], [BL, LP], [BL, PM]]   # blocked animals against every stage (Figure S2)
+    exclude_levels: []
+    expected_n: {IM: 12, EP: 10, MP: 6, LP: 7, PM: 12, BL: 7}   # 54 animals; checked against the sheet before any fit
+    x_axis: categorical                     # one bar per stage
+    x_label: Stage
+  ESA:                                      # days after eyestalk ablation
+    levels: [D0, D1, D3, D5, D7, D14, D19]  # Day 0 controls include the intact animals
+    outside_stage_test: []
+    closing_contrast: false                 # a time course does not close on itself
+    extra_contrasts: []
+    exclude_levels: [female]                # the two female libraries stay in the sheet but are not analyzed
+    expected_n: {D0: 13, D1: 8, D3: 9, D5: 7, D7: 8, D14: 9, D19: 5}   # 59 males; D0 = 8 day-0 animals plus 5 intact animals
+    x_axis: numeric                         # a line over days
+    numeric_from: 'D(\d+)'                  # the day is the number after the D in the stage name
+    x_label: Days Post-ESA
+figures:
+  family_order: [InsR, EGFR, FGFR, PVR]     # insulin, epidermal growth factor, fibroblast growth factor, PDGF/VEGF receptor families
+  panel_label: RTK                          # how the panel genes are called in the supplementary legends
+  styles: [enhanced]                        # pale bars (mean and standard error) with one dot per animal
+  style_dirs: {enhanced: ""}                # write the figures directly into the figure directory (figures/main)
+  filename: "Fig{n:02d}_Gl_{family}_{unit}" # Fig01_Gl_InsR_MLA and so on (two-digit figure number)
+  ncols: {}                                 # two panels per row for every family
+  figure_numbers:                           # Figures 1 to 8 of the paper
+    InsR/MLA: 1
+    InsR/ESA: 2
+    EGFR/MLA: 3
+    EGFR/ESA: 4
+    FGFR/MLA: 5
+    FGFR/ESA: 6
+    PVR/MLA: 7
+    PVR/ESA: 8
+  silhouette: species_photos/silhouettes/glat.png
+  silhouette_label: G. lateralis
+  display_names: {}                         # every gene is shown as spelled in the panel file
+  supplement:                               # volcano and MA plots, one row per comparison
+    - {unit: MLA, contrasts: transitions, tag: S1, title: "MLA: molt cycle transitions", filename: FigS1_Gl_MLA_transitions}       # IM to EP, EP to MP, MP to LP, LP to PM, PM to IM
+    - {unit: MLA, contrasts: extra, tag: S2, title: "MLA: blocked (BL) vs each molt stage", filename: FigS2_Gl_MLA_blocked}       # the five extra_contrasts
+    - {unit: ESA, contrasts: transitions, tag: S3, title: "ESA: consecutive days post-ablation", filename: FigS3_Gl_ESA_days}     # D0 to D1, ..., D14 to D19
+tables:
+  order: panel                              # Table S1 lists the genes in the order of the panel file
+  name: TableS1_Gl                          # tables/TableS1_Gl.tsv and tables/TableS1_Gl.md

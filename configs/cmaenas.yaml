@@ -1,0 +1,67 @@
+# Configuration for the Carcinus maenas dataset.
+#
+# Two tissues, analyzed separately as two units: the Y-organ (YO) and the central nervous system
+# (CNS), each sampled at four molt stages. Every path is relative to base; base "." is the
+# directory the pipeline is run from (the repository root, as in the README), and the BASE
+# environment variable overrides it. Each key is explained in pipeline/configs/example.yaml; the
+# comments here give the values their meaning in this study.
+name: cmaenas                               # prefix of the tables that span both tissues
+base: "."
+quant_dir: data/cmaenas/salmon_output       # one subdirectory per library, named by its SRA run, each holding quant.sf
+sample_sheet: data/cmaenas/cmaenas_samplesheet.tsv   # 50 libraries: run, crab, aiken_stage, tissue, mykles_stage
+sample_id_col: run                          # the SRA run accession identifies the library
+quant_subdir_col: run
+level_col: mykles_stage                     # IM, MP, LP, PM (aiken_stage gives the finer staging of the original study)
+unit_col: tissue                            # YO or CNS
+panel: data/cmaenas/cmaenas_panel_reps.tsv  # 29 receptor tyrosine kinase transcripts of 23 genes
+panel_aggregate: true                       # the transcripts of a gene are summed and the gene is analyzed
+panel_tag: rtk                              # panel tables are named <unit>_rtk_letters.tsv and so on
+output_dir: results/cmaenas
+alpha: 0.05                                 # a gene is molt-regulated when its targeted false discovery rate is below 0.05
+pairwise_adjust: holm                       # Holm adjustment of the pairwise stage comparisons within each molt-regulated gene
+shrinkage: normal                           # fold-change shrinkage used for the supplementary tables and plots
+units:
+  YO:                                       # Y-organ, the molting gland
+    levels: [IM, MP, LP, PM]                # intermolt, mid-premolt, late premolt, postmolt
+    outside_stage_test: []
+    closing_contrast: true                  # the supplement also compares IM against PM (the cycle closes)
+    extra_contrasts: []
+    exclude_levels: []
+    expected_n: {IM: 5, MP: 5, LP: 10, PM: 5}   # 25 libraries; checked against the sheet before any fit
+    x_axis: categorical                     # one bar per stage
+    x_label: Stage
+  CNS:                                      # central nervous system
+    levels: [IM, MP, LP, PM]                # the same four stages as the Y-organ
+    outside_stage_test: []
+    closing_contrast: true                  # the supplement also compares IM against PM (the cycle closes)
+    extra_contrasts: []
+    exclude_levels: []
+    expected_n: {IM: 5, MP: 5, LP: 10, PM: 5}   # 25 libraries; checked against the sheet before any fit
+    x_axis: categorical                     # one bar per stage
+    x_label: Stage
+figures:
+  family_order: [InsR, EGFR, FGFR, PVR]     # insulin, epidermal growth factor, fibroblast growth factor, PDGF/VEGF receptor families
+  panel_label: RTK                          # how the panel genes are called in the supplementary legends
+  styles: [enhanced]                        # pale bars (mean and standard error) with one dot per library
+  style_dirs: {enhanced: ""}                # write the figures directly into the figure directory (figures/main)
+  filename: "Fig{n:02d}_Cm_{family}_{unit}" # Fig09_Cm_InsR_YO and so on (two-digit figure number)
+  ncols: {PVR: 4}                           # the PVR family has eight genes: four panels per row
+  figure_numbers:                           # Figures 9 to 16 of the paper
+    InsR/YO: 9
+    InsR/CNS: 10
+    EGFR/YO: 11
+    EGFR/CNS: 12
+    FGFR/YO: 13
+    FGFR/CNS: 14
+    PVR/YO: 15
+    PVR/CNS: 16
+  silhouette: species_photos/silhouettes/cmaenas.png
+  silhouette_label: C. maenas
+  display_names: {Cm-EGFR-1A4: Cm-EGFR1-A4}   # the panel file's spelling of this gene, and the spelling shown in the paper
+  supplement:                               # volcano and MA plots, one row per comparison; the titles use
+                                            # matplotlib's math notation to italicize the species name
+    - {unit: YO, contrasts: transitions, tag: S4, title: "$\\it{Carcinus\\ maenas}$ Y-organ: molt cycle transitions", filename: FigS4_Cm_YO_transitions}                    # IM to MP, MP to LP, LP to PM, PM to IM
+    - {unit: CNS, contrasts: transitions, tag: S5, title: "$\\it{Carcinus\\ maenas}$ central nervous system: molt cycle transitions", filename: FigS5_Cm_CNS_transitions}   # the same four comparisons
+tables:
+  order: family_name                        # Table S2 lists the genes by family, then by name
+  name: TableS2_Cm                          # tables/TableS2_Cm.tsv and tables/TableS2_Cm.md

@@ -1,0 +1,70 @@
+# Template configuration for the DGE-panel pipeline.
+#
+# Copy this file into your project, fill in every path, and describe your units. One configuration
+# describes one dataset: where its quantifications and sample sheet are, which genes make up the
+# panel, how the stages are organized, and how the figures and tables should look. Every path is
+# relative to `base` (or to the BASE environment variable when it is set, which lets the same file
+# run against data kept elsewhere). Unknown keys are errors, so a misspelled key cannot be ignored.
+
+# ---- identity and paths ---------------------------------------------------------------------
+name: example                 # short name of the dataset; prefixes the tables that cover all units
+base: /path/to/project        # root under which every relative path below resolves; quote a bare dot ("." )
+quant_dir: quant              # directory of Salmon outputs: one subdirectory per library, each holding quant.sf
+sample_sheet: samples.tsv     # tab-separated table with one row per library (see README.md, "Input files")
+sample_id_col: sampleid       # sample-sheet column that identifies the library
+quant_subdir_col: sampleid    # sample-sheet column that names the library's subdirectory under quant_dir
+level_col: stage              # sample-sheet column that gives the library's stage (molt stage, day, condition)
+unit_col: tissue              # sample-sheet column that assigns the library to an analysis unit
+panel: panel.tsv              # tab-separated table of the genes of interest: columns gene, transcript_id, family
+panel_aggregate: false        # true: sum the transcripts of each panel gene and analyze the gene;
+                              # false: each panel gene is exactly one transcript
+panel_tag: panel              # one word used in the names of the panel tables (<unit>_<tag>_letters.tsv, ...)
+output_dir: dge_output        # where the R scripts write, relative to base
+
+# ---- statistics -----------------------------------------------------------------------------
+alpha: 0.05                   # significance threshold: a panel gene is regulated when its targeted false
+                              # discovery rate is below alpha; the same threshold builds the letters
+pairwise_adjust: holm         # adjustment of the pairwise p-values within each regulated gene: holm or BH
+shrinkage: normal             # fold-change shrinkage for the supplementary tables: normal
+
+# ---- analysis units -------------------------------------------------------------------------
+# One entry per unit (a tissue, an experiment). The key must be a value found in unit_col.
+units:
+  T1:
+    levels: [L1, L2, L3, L4]  # the stages, in the order they are tested and drawn; values of level_col
+    outside_stage_test: []    # stages kept in the model with their own mean but left out of the question
+                              # "does expression change across the stages" (for example blocked animals)
+    closing_contrast: true    # also compare the first stage against the last (a cycle) in the supplement
+    extra_contrasts: []       # further [later, earlier] pairs for the supplement, for example [[BL, L1]]
+    exclude_levels: []        # values of level_col that are in the sheet on purpose but not analyzed;
+                              # any other unexpected value stops the run
+    expected_n: {L1: 5, L2: 5, L3: 5, L4: 5}   # optional: libraries expected per stage, checked before any fit
+    x_axis: categorical       # categorical: one bar per stage; numeric: a line over a numeric axis
+    x_label: Stage            # axis title on the main figures
+    # numeric_from: 'D(\d+)'  # with x_axis numeric: a regular expression whose first group gives the number
+
+# ---- figures --------------------------------------------------------------------------------
+figures:
+  family_order: [FamA, FamB]  # gene families in the order the main figures are numbered
+  panel_label: panel gene     # how the panel genes are called in the supplement legends
+  styles: [manuscript, enhanced]            # figure styles to draw (serif bars; sans-serif with points)
+  style_dirs: {manuscript: manuscript_style, enhanced: enhanced_style}   # output subdirectory per style;
+                              # "" writes that style directly into the figure directory
+  filename: "Fig_{n}_{family}_{unit}"   # main-figure filename; {n} also accepts a Python format spec (zero padding)
+  ncols: {}                   # columns of the panel grid per family (default 2), for example {FamB: 4}
+  figure_numbers: {FamA/T1: 1, FamB/T1: 2}   # figure number of each family/unit combination
+  silhouette: silhouette.png  # image drawn in a corner of every main figure, relative to base
+  silhouette_label: Species name              # caption under the silhouette (italic)
+  fixed_ylim: {}              # optional y-axis maxima for the manuscript style, one per panel:
+                              # {FamA/T1: [6, 6, 6, 6]}; panels without an entry scale to their data
+  display_names: {}           # gene names to show differently from the panel file: {old: new}
+  supplement:                 # one supplementary figure per entry: volcano and MA plots of a unit's
+                              # transitions (or extra contrasts), with the panel genes marked
+    - {unit: T1, contrasts: transitions, tag: S1, title: "T1: level transitions"}
+                              # optional per entry: filename (without extension), default Fig<tag>_<unit>_dge,
+                              # for example filename: FigS1_T1_transitions
+
+# ---- tables ---------------------------------------------------------------------------------
+tables:
+  order: panel                # row order of the summary table: panel (panel-file order) or family_name
+  name: table_s1              # filename stem of the summary table (.tsv and .md)

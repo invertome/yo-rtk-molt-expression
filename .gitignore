@@ -1,0 +1,6 @@
+site.env
+data/*/salmon_output/
+*.rds
+tmp/
+__pycache__/
+*.pyc
