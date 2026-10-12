@@ -221,3 +221,13 @@ status 0 only when every expected table passes.
 Species silhouettes are from PhyloPic under the CC0 1.0 public-domain dedication:
 *Gecarcinus* by Margot Michaud and *Carcinus maenas* by Mario Quevedo
 (`species_photos/silhouettes/*.txt`).
+
+## License
+
+Copyright (c) 2026 Jorge L. Pérez-Moreno.
+
+The code (`pipeline/`, `configs/`) is released under the MIT License (`LICENSE`). The sample
+sheets, result tables, tables and figures (`data/`, `results/`, `tables/`, `figures/`,
+`env_explicit.txt`) are released under the Creative Commons Attribution 4.0 International
+license (`LICENSE-data`). The species silhouettes keep their CC0 1.0 dedication (see
+"Attribution").
