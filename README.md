@@ -6,22 +6,30 @@ kinase (RTK) expression in crabs. Everything needed to rebuild every table and f
 files, which are on Zenodo (see "Step 3").
 
 You do not need to run anything to look at the results. The finished tables are in `results/` and
-`tables/`, and the figures are in `figures/`. The rest of this page explains the study in plain
-terms, defines the technical words, and walks through rerunning the analysis one step at a time.
+`tables/`, and the figures are in `figures/`. The rest of this page explains the study, defines the technical words, and walks through rerunning the analysis one step at a time.
 
-## The study in plain terms
+## Scientific background
 
-Crabs grow by molting. They shed their hard shell and grow a new, larger one. Molting is
-controlled by a small gland, the **Y-organ** (YO), which makes the molting hormones
-(ecdysteroids). The YO's activity is controlled by signals from the rest of the body.
+Crustaceans grow through a series of molts, in which the old exoskeleton is shed and replaced by a
+larger one. In decapods, molting is controlled by the Y-organ (YO), the molting gland, which
+synthesizes and secretes the steroid molting hormones (ecdysteroids) that initiate and coordinate
+the molt cycle.
 
-**Receptor tyrosine kinases** are proteins that sit in the cell membrane and pass signals from
-outside the cell to the inside. Four RTK families are studied here: insulin receptors (InsR),
-epidermal growth factor receptors (EGFR), fibroblast growth factor receptors (FGFR), and
-PDGF/VEGF-related receptors (PVR). If the YO changes how much of these receptors it makes during
-the molt cycle, that is a hint that they help control molting.
+Insulin and growth factor receptors belong to the receptor tyrosine kinase (RTK) superfamily. Each
+receptor has an extracellular ligand-binding domain, a single-pass transmembrane domain and an
+intracellular tyrosine kinase domain. Ligand binding activates the kinase, and the main downstream
+targets are the Ras/Raf/MAP kinase and PI3K/Akt/mTOR signaling pathways. Crustaceans express four
+major types of these receptors: the insulin receptor (InsR), the epidermal growth factor receptor
+(EGFR), the fibroblast growth factor receptor (FGFR) and the PDGF/VEGF-related receptor (PVR).
 
-So for each RTK, in each tissue and experiment, the analysis asks two questions:
+In insects, insulin-like peptide and growth factor RTK signaling stimulates ecdysteroid synthesis
+in the prothoracic gland, the insect molting gland. The direct effects of these ligands on
+ecdysteroidogenesis in the decapod YO have not been measured. The RTKs are expressed in the YO,
+which suggests that growth factors contribute to YO regulation over the molt cycle.
+
+This study uses RNA sequencing (RNA-seq) of the YO, and in *C. maenas* also of the central nervous
+system, to test whether RTK transcript abundance changes over the molt cycle. For each RTK, in
+each tissue and experiment, the analysis asks two questions.
 
 1. Does its expression change across the molt cycle?
 2. If it does, between which stages?
