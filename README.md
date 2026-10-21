@@ -5,13 +5,13 @@ kinase (RTK) expression in crabs. Everything needed to rebuild every table and f
 (Figures 1 to 16, Figures S1 to S5, Tables S1 and S2) is here, except the large per-sample input
 files, which are on Zenodo (see "Step 3").
 
-You do not need to run anything to look at the results: the finished tables are in `results/` and
+You do not need to run anything to look at the results. The finished tables are in `results/` and
 `tables/`, and the figures are in `figures/`. The rest of this page explains the study in plain
 terms, defines the technical words, and walks through rerunning the analysis one step at a time.
 
 ## The study in plain terms
 
-Crabs grow by molting: they shed their hard shell and grow a new, larger one. Molting is
+Crabs grow by molting. They shed their hard shell and grow a new, larger one. Molting is
 controlled by a small gland, the **Y-organ** (YO), which makes the molting hormones
 (ecdysteroids). The YO's activity is controlled by signals from the rest of the body.
 
@@ -36,12 +36,12 @@ So for each RTK, in each tissue and experiment, the analysis asks two questions:
     were assigned from the regeneration index (how far the new limb buds have grown) and the
     amount of molting hormone in the blood (hemolymph ecdysteroid titer).
   - **Eyestalk ablation (ESA).** Removing the eyestalks removes a hormone that holds the YO back,
-    so molting starts. 59 males were sampled at days 0, 1, 3, 5, 7, 14 and 19 after ablation; the
+    so molting starts. 59 males were sampled at days 0, 1, 3, 5, 7, 14 and 19 after ablation. The
     intact animals are the Day 0 controls.
   - The *G. lateralis* gene panel has 17 RTK transcripts, one per gene.
 - ***Carcinus maenas*** (the green crab): 25 YO and 25 central nervous system (CNS) libraries
   from paired tissues, at four molt stages: IM, MP, LP and PM. The panel has 29 RTK
-  transcripts from 23 genes; when a gene has several transcripts, they are added together and the
+  transcripts from 23 genes. When a gene has several transcripts, they are added together and the
   gene is analyzed as one.
 
 ## Key terms
@@ -103,7 +103,7 @@ with pandas, matplotlib, numpy, PyYAML and Pillow, for example:
 ### Step 3. Download the input files
 
 The analysis starts from one Salmon `quant.sf` file per library. These files are too large for
-GitHub and are on Zenodo ([Zenodo DOI]); the raw reads are in the NCBI Sequence Read Archive (SRA)
+GitHub and are on Zenodo ([Zenodo DOI]). The raw reads are in the NCBI Sequence Read Archive (SRA)
 under BioProject [SRA BioProject accession]. Put each file in its own folder, named as in the sample
 sheet:
 
@@ -120,11 +120,11 @@ Fill in two lines: `CONDA_SH`, the path of conda's start-up script (it is
 `<conda folder>/etc/profile.d/conda.sh`, and `conda info --base` prints the conda folder), and
 `CONDA_ENV=dge_panel_r`. The file also sets `OPENBLAS_CORETYPE=HASWELL`, which makes the numbers
 come out identical on different computers (see "Software"). That setting applies to Intel and AMD
-processors only; on any other processor (for example ARM), comment it out and remove the `#` in
+processors only. On any other processor (for example ARM), comment it out and remove the `#` in
 front of `DGE_BLAS_PIN=none`.
 
 You can skip this step if `Rscript` from the `dge_panel_r` environment is already on your `PATH`
-(for example after `conda activate dge_panel_r`); the pipeline then says that the BLAS setting is
+(for example after `conda activate dge_panel_r`). The pipeline then says that the BLAS setting is
 unpinned.
 
 ### Step 5. Run the statistics
@@ -139,7 +139,7 @@ A run that worked ends with `VALIDATION PASSED` and `PIPELINE DONE`, and its tab
 show what went wrong.
 
 On a computing cluster that uses Slurm, `pipeline/run_pipeline.sbatch` runs the same script as a
-job; `pipeline/README.md` ("Running") shows how.
+job, and `pipeline/README.md` ("Running") shows how.
 
 ### Step 6. Build the tables and figures
 
@@ -153,7 +153,7 @@ job; `pipeline/README.md` ("Running") shows how.
 
 ### Step 7. Check the result
 
-The paper reports these numbers of molt-regulated RTKs; a correct rerun gives the same:
+A correct rerun gives the same numbers of molt-regulated RTKs as the paper:
 4 of the 17 transcripts in the MLA experiment, 6 of 17 in the ESA experiment, 4 of the 23 genes
 in the *C. maenas* YO, and 0 of 23 in the *C. maenas* CNS. "Checking a rerun" below compares
 every table, value by value.
@@ -178,20 +178,20 @@ package tximport reads those `quant.sf` files into a table with one row per tran
 column per library. For *C. maenas*, the transcripts of each gene are added together at this point
 so that each gene is one row.
 
-Very rarely detected transcripts carry almost no information and add noise, so they are removed:
-a transcript is kept when at least as many libraries as the smallest stage group have 10 or more
+Very rarely detected transcripts carry almost no information and add noise, so they are removed.
+A transcript is kept when at least as many libraries as the smallest stage group have 10 or more
 reads for it. The RTKs are always kept, even when barely expressed, so that every RTK appears in
 the results.
 
 ### Why the tests use counts but the plots use TPM
 
 The statistical tests work on read counts, because the statistical model in DESeq2 is built for
-counts: it knows, for example, that a transcript seen 5 times is measured much less precisely than one seen
+counts. It knows, for example, that a transcript seen 5 times is measured much less precisely than one seen
 5,000 times. TPM values lose that information, so they are not used for testing.
 
 Counts, however, depend on how deeply each library was sequenced, so they are hard to read on a
 graph. The figures therefore show **normalized TPM**. TPM already corrects for library size and
-transcript length. One more correction is needed: if a few transcripts are extremely abundant in
+transcript length. One more correction is needed. If a few transcripts are extremely abundant in
 some libraries, they take up a larger share of the "per million" and make every other transcript
 look lower. To remove that effect, each library gets a size factor computed from the TPM of all
 transcripts (DESeq2's median-of-ratios method), and each TPM value is divided by its library's
@@ -201,8 +201,8 @@ size factor.
 
 DESeq2 is fitted to every transcript that passed the filter, not only the RTKs. Using thousands of
 transcripts lets DESeq2 learn how much expression normally varies between animals at the same
-stage (the "dispersion"). Each stage has relatively few animals, too few to estimate the variability of one transcript reliably on its own; DESeq2 borrows
-strength from transcripts with similar expression levels. DESeq2 also computes size factors for
+stage (the "dispersion"). Each stage has relatively few animals, too few to estimate the variability of one
+transcript reliably on its own. DESeq2 borrows strength from transcripts with similar expression levels. DESeq2 also computes size factors for
 the counts, the same idea as described above for TPM, so that deeply and shallowly sequenced
 libraries can be compared.
 
@@ -212,8 +212,8 @@ The model gives every stage its own average expression level. This is the "full"
 
 The likelihood-ratio test (LRT) compares the full model with a "reduced" model in which all stages
 share one average. If the full model fits the data much better, expression changes somewhere
-across the cycle. The test gives one p-value per transcript and does not say which stages differ;
-that is question 2.
+across the cycle. The test gives one p-value per transcript and does not say which stages differ.
+That is question 2.
 
 In the MLA experiment the blocked animals (BL) are not part of the molt cycle, so they keep their
 own average in both models. The test then asks only whether expression varies among the five
@@ -222,7 +222,7 @@ dispersion.
 
 By default, DESeq2 sets aside a transcript in which one animal has an extreme count (an outlier,
 detected with a measure called Cook's distance). That option is switched off here, so a single
-unusual animal cannot remove an RTK from the analysis; the test is run on every RTK.
+unusual animal cannot remove an RTK from the analysis. The test is run on every RTK.
 
 ### Correcting for many tests: q-values
 
@@ -233,9 +233,9 @@ called significant, the expected proportion of false positives is at most 5%.
 
 The adjustment here is made across the RTK panel only (17 tests for *G. lateralis*, 23 for
 *C. maenas*), because the RTKs were chosen before the analysis and are the only transcripts the
-study asks about. This value, `q_targeted`, decides the call: an RTK is **molt-regulated** when it
-is below 0.05. The value adjusted across every transcript in the transcriptome,
-`q_transcriptomewide`, is adjusted over many more tests, so it is usually larger; it is reported
+study asks about. This value, `q_targeted`, decides the call. An RTK is **molt-regulated** when
+this value is below 0.05. `q_transcriptomewide` is adjusted across every transcript in the transcriptome. That
+covers many more tests, so it is usually larger. It is reported
 alongside for comparison.
 
 ### Question 2: which stages differ?
@@ -243,10 +243,10 @@ alongside for comparison.
 For each molt-regulated RTK, every pair of stages is compared with a Wald test, which asks whether
 the difference between two stage averages is larger than the variability would explain. Because
 one RTK gets many pairwise comparisons, the p-values are adjusted again, within that RTK, with the
-Holm method; this keeps the chance of even one false positive among that RTK's comparisons at 5%
+Holm method. This keeps the chance of even one false positive among that RTK's comparisons at 5%
 or below.
 
-The results are summarized as compact letters above the bars: two stages that share a letter are
+The results are summarized as compact letters above the bars. Two stages that share a letter are
 not significantly different, and two stages with no letter in common are. For example, stages
 labeled "a", "ab" and "b" mean that the first and last differ and the middle one differs from
 neither. RTKs that are not molt-regulated get no letters.
@@ -260,7 +260,7 @@ shown as a volcano plot and an MA plot with the RTKs marked in red and the signi
 starred.
 
 The fold changes in these plots are "shrunken". A transcript with only a few reads can show a huge
-fold change from a small random difference; shrinkage pulls such unreliable estimates toward zero
+fold change from a small random difference. Shrinkage pulls such unreliable estimates toward zero
 while leaving well-measured ones almost unchanged, so noisy low-count transcripts do not dominate
 the plots.
 
@@ -311,13 +311,13 @@ with Salmon 1.10.3, both with automatic library-type detection.
 **Gene panels.** `data/glat/glat_rtk_genes.tsv` lists the 17 *G. lateralis* RTK transcripts with
 their gene name, transcript identifier, family (`InsR`, `EGFR`, `FGFR`, `PVR`), and whether the
 transcript is partial. `data/cmaenas/cmaenas_panel_reps.tsv` lists the 29 *C. maenas* RTK
-transcripts of 23 genes by gene, transcript identifier and family; each of the six genes with
+transcripts of 23 genes by gene, transcript identifier and family. Each of the six genes with
 several transcripts is quantified as the sum of its transcripts.
 
 ## Reference: output files
 
-**Result tables** in `results/glat/` (units `MLA` and `ESA`; the unit column is `experiment`) and
-`results/cmaenas/` (units `YO` and `CNS`; the unit column is `tissue`). `<unit>` stands for one of
+**Result tables** in `results/glat/` (units `MLA` and `ESA`, in the unit column `experiment`) and
+`results/cmaenas/` (units `YO` and `CNS`, in the unit column `tissue`). `<unit>` stands for one of
 those names.
 
 | File | Columns |
@@ -333,7 +333,7 @@ those names.
 | `<unit>_pca_var.tsv` | `PC`; `pct`: the percentage of variance carried by each component |
 
 Each run also writes `<unit>_dds.rds`, the fitted DESeq2 object, which the repository does not
-track. The pairwise comparisons are: MLA `EP_vs_IM`, `MP_vs_EP`, `LP_vs_MP`, `PM_vs_LP`,
+track. The pairwise comparisons are MLA `EP_vs_IM`, `MP_vs_EP`, `LP_vs_MP`, `PM_vs_LP`,
 `IM_vs_PM` and `BL_vs_<stage>` for each of the five stages; ESA `D1_vs_D0` through `D19_vs_D14`;
 YO and CNS `MP_vs_IM`, `LP_vs_MP`, `PM_vs_LP`, `IM_vs_PM`.
 
@@ -350,11 +350,11 @@ embedded at 600 dpi).
 | `figures/supplementary/FigS4_Cm_YO_transitions` | Figure S4: *C. maenas* YO, consecutive molt stages |
 | `figures/supplementary/FigS5_Cm_CNS_transitions` | Figure S5: *C. maenas* CNS, consecutive molt stages |
 
-In Figures 1 to 16, each panel shows one RTK transcript: gray bars give the mean normalized TPM at
-each stage with its standard error, one dot per library, and compact letters over the molt-regulated
-transcripts; the ESA figures draw a line over days instead of bars. In Figures S1 to S5, each row
+In Figures 1 to 16, each panel shows one RTK transcript. Gray bars give the mean normalized TPM at
+each stage with its standard error, dots show one library each, and compact letters sit over the
+molt-regulated transcripts. The ESA figures draw a line over days instead of bars. In Figures S1 to S5, each row
 is one pairwise comparison, with a volcano plot on the left (log2 fold change against -log10
-adjusted p-value) and an MA plot on the right (log2 fold change against mean expression); every
+adjusted p-value) and an MA plot on the right (log2 fold change against mean expression). Every
 transcript is a gray point, RTK transcripts are red, and those significant in that comparison are
 starred and named. `figures/supplementary/glat_stars.json` and `cmaenas_stars.json` list, for each
 supplementary figure, the (comparison, gene) pairs that received a star, which can be checked
@@ -368,15 +368,15 @@ Markdown version writes the numbers in scientific notation.
 ## Software
 
 R 4.5.3 with DESeq2 1.50.2, tximport 1.38.2, readr 2.2.0, data.table 1.18.6.1, multcompView
-0.1-12 and yaml 2.3.12 (`pipeline/env_r.yaml`); `env_explicit.txt` lists the exact environment
+0.1-12 and yaml 2.3.12 (`pipeline/env_r.yaml`), and `env_explicit.txt` lists the exact environment
 used. The table and figure scripts need Python 3 with pandas, matplotlib, numpy, PyYAML and Pillow.
 
 **Why the numbers can differ in the last decimal places.** The tables in `results/` were computed
 with the OpenBLAS math library pinned to one processor setting (`OPENBLAS_CORETYPE=HASWELL`, set
 in `site.env`). Without it, OpenBLAS picks a setting to suit each processor, and different
 processors round slightly differently, which changes the last decimal places of some
-transcriptome-wide estimates. The figures use the Liberation
-fonts; if those are missing, matplotlib uses another typeface and the plotted data stay the same.
+transcriptome-wide estimates. The figures use the Liberation fonts.
+If those are missing, matplotlib uses another typeface and the plotted data stay the same.
 
 ## Checking a rerun
 
@@ -389,7 +389,7 @@ and compare the two, table by table:
     python3 pipeline/compare_outputs.py results/cmaenas tmp/rerun/cmaenas --units YO,CNS  --name cmaenas --tag rtk
 
 `compare_outputs.py` prints one line per table: PASS, or FAIL with the cells that differ. Text
-columns (letters, calls, sample names) must match exactly; numbers must agree within a relative
+columns (letters, calls, sample names) must match exactly. Numbers must agree within a relative
 difference of 1e-6, and p-values also within 0.01 on the log10 scale. It exits with status 0 only
 when every table passes. It does not compare the normalized-TPM columns or the size-factor files.
 
@@ -401,7 +401,7 @@ Species silhouettes are from PhyloPic under the CC0 1.0 public-domain dedication
 
 ## License
 
-Copyright (c) 2026 Jorge L. Pérez-Moreno.
+Copyright (c) 2026 Jorge L. Pérez-Moreno, Ph.D.
 
 The code (`pipeline/`, `configs/`) is released under the MIT License (`LICENSE`). The sample
 sheets, result tables, tables and figures (`data/`, `results/`, `tables/`, `figures/`,
