@@ -8,7 +8,7 @@ files, which are on Zenodo (see "Step 3").
 You do not need to run anything to look at the results. The finished tables are in `results/` and
 `tables/`, and the figures are in `figures/`. The rest of this page explains the study, defines the technical words, and walks through rerunning the analysis one step at a time.
 
-## Scientific background
+## Background
 
 Crustaceans grow through a series of molts, in which the old exoskeleton is shed and replaced by a
 larger one. In decapods, molting is controlled by the Y-organ (YO), the molting gland, which
