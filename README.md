@@ -55,7 +55,7 @@ So for each RTK, in each tissue and experiment, the analysis asks two questions:
 | Normalized TPM | TPM corrected for differences in overall makeup between libraries (each library's TPM is divided by a "size factor"). The bar charts in the paper show normalized TPM. |
 | DESeq2 | A widely used R package for testing whether expression differs between groups of samples. It works on read counts and accounts for differences in library size. |
 | Likelihood-ratio test (LRT) | The test for question 1. It compares a model in which each stage has its own average with one in which all stages share a single average. A small p-value means expression changes across the cycle. |
-| Wald test | The test for question 2: it compares one stage with another. |
+| Wald test | The test for question 2, which compares one stage with another. |
 | False discovery rate, q-value | When many genes are tested at once, some will look significant by chance. Adjusted p-values (q-values) correct for this; a transcript is called molt-regulated when its q-value is below 0.05. |
 | Compact letters | The letters above the bars. Stages that share a letter are not significantly different; stages with no letter in common are. |
 | Log2 fold change | How many times higher or lower expression is in one group than another, on a log2 scale (1 means twice as high, -1 means half). |
@@ -103,8 +103,8 @@ with pandas, matplotlib, numpy, PyYAML and Pillow, for example:
 ### Step 3. Download the input files
 
 The analysis starts from one Salmon `quant.sf` file per library. These files are too large for
-GitHub and are on Zenodo ([Zenodo DOI]); the raw reads are in the NCBI Sequence Read Archive under
-BioProject [SRA BioProject accession]. Put each file in its own folder, named as in the sample
+GitHub and are on Zenodo ([Zenodo DOI]); the raw reads are in the NCBI Sequence Read Archive (SRA)
+under BioProject [SRA BioProject accession]. Put each file in its own folder, named as in the sample
 sheet:
 
     data/glat/salmon_output/<filename>/quant.sf     <filename> = the "filename" column of data/glat/samples.tsv
@@ -160,38 +160,127 @@ every table, value by value.
 
 ## How the analysis works
 
-This section summarizes the method; `pipeline/README.md` gives the full details, and the comments
-in `configs/glat.yaml` and `configs/cmaenas.yaml` explain each setting.
+This section explains the method and the statistics for readers who have not used them before.
+`pipeline/README.md` gives the full technical details, and the comments in `configs/glat.yaml`
+and `configs/cmaenas.yaml` explain each setting.
 
-1. **Four separate analyses.** MLA and ESA for *G. lateralis*, YO and CNS for *C. maenas*. Before
-   any statistics, the pipeline checks that the number of samples at every stage matches the
-   configuration.
-2. **One model for all genes.** DESeq2 is fitted to every transcript in the sample (for
-   *C. maenas*, every gene), not only the RTKs, with one average per stage. Using all genes gives
-   DESeq2 better estimates of how variable expression is. RTKs stay in the model even when
-   barely expressed.
-3. **Does expression change over the cycle?** The likelihood-ratio test compares that model with
-   one in which all stages share a single average. In the MLA experiment the blocked animals keep
-   their own average in both models, so the test asks only whether expression varies across the
-   five stages of the actual cycle. DESeq2 can automatically discard a gene in which one animal
-   has an extreme value (detected with Cook's distance); that option is switched off here, so a
-   single unusual animal cannot remove an RTK from the analysis.
-4. **Which RTKs are molt-regulated.** The p-values of the RTKs are adjusted for multiple testing
-   across the RTK panel only (Benjamini-Hochberg over the 17 or 23 RTKs). An RTK is molt-regulated
-   when that adjusted value (`q_targeted`) is below 0.05. The value adjusted across all genes
-   (`q_transcriptomewide`) is reported as well but does not decide the call.
-5. **Which stages differ.** For each molt-regulated RTK, every pair of stages is compared with a
-   Wald test, the p-values are adjusted within that RTK (Holm method), and the result is shown as
-   compact letters above the bars. RTKs that are not molt-regulated get no letters on the figures.
-6. **Supplementary comparisons.** Each step of the cycle (IM to EP, EP to MP, and so on, including
-   PM back to IM), each day after ablation against the day before, and the blocked animals against
-   every MLA stage are compared for all genes, and shown as volcano and MA plots with the RTKs
-   marked (Figures S1 to S5). A principal component analysis (a summary of overall similarity
-   between samples) is saved for each analysis too.
-7. **Automatic checks.** After every run the output tables are checked for consistency (one row
-   per transcript and stage, sample counts that match the sheet, calls that match the adjusted
-   p-values, every missing value explained). If a check fails, the run stops with an error rather
-   than producing doubtful tables.
+### Four separate analyses
+
+The data form four groups that are analyzed independently: the MLA and ESA experiments in
+*G. lateralis*, and the YO and CNS in *C. maenas*. Each group gets its own model and its own
+tests. Before fitting anything, the pipeline checks that the number of libraries at every stage matches
+the number written in the configuration, and stops if it does not.
+
+### From reads to counts
+
+Salmon has already worked out how many reads in each library came from each transcript. The R
+package tximport reads those `quant.sf` files into a table with one row per transcript and one
+column per library. For *C. maenas*, the transcripts of each gene are added together at this point
+so that each gene is one row.
+
+Very rarely detected transcripts carry almost no information and add noise, so they are removed:
+a transcript is kept when at least as many libraries as the smallest stage group have 10 or more
+reads for it. The RTKs are always kept, even when barely expressed, so that every RTK appears in
+the results.
+
+### Why the tests use counts but the plots use TPM
+
+The statistical tests work on read counts, because the statistical model in DESeq2 is built for
+counts: it knows, for example, that a transcript seen 5 times is measured much less precisely than one seen
+5,000 times. TPM values lose that information, so they are not used for testing.
+
+Counts, however, depend on how deeply each library was sequenced, so they are hard to read on a
+graph. The figures therefore show **normalized TPM**. TPM already corrects for library size and
+transcript length. One more correction is needed: if a few transcripts are extremely abundant in
+some libraries, they take up a larger share of the "per million" and make every other transcript
+look lower. To remove that effect, each library gets a size factor computed from the TPM of all
+transcripts (DESeq2's median-of-ratios method), and each TPM value is divided by its library's
+size factor.
+
+### The DESeq2 model
+
+DESeq2 is fitted to every transcript that passed the filter, not only the RTKs. Using thousands of
+transcripts lets DESeq2 learn how much expression normally varies between animals at the same
+stage (the "dispersion"). Each stage has relatively few animals, too few to estimate the variability of one transcript reliably on its own; DESeq2 borrows
+strength from transcripts with similar expression levels. DESeq2 also computes size factors for
+the counts, the same idea as described above for TPM, so that deeply and shallowly sequenced
+libraries can be compared.
+
+The model gives every stage its own average expression level. This is the "full" model.
+
+### Question 1: does expression change across the molt cycle?
+
+The likelihood-ratio test (LRT) compares the full model with a "reduced" model in which all stages
+share one average. If the full model fits the data much better, expression changes somewhere
+across the cycle. The test gives one p-value per transcript and does not say which stages differ;
+that is question 2.
+
+In the MLA experiment the blocked animals (BL) are not part of the molt cycle, so they keep their
+own average in both models. The test then asks only whether expression varies among the five
+stages of the cycle (IM, EP, MP, LP, PM), while the blocked animals still help DESeq2 estimate the
+dispersion.
+
+By default, DESeq2 sets aside a transcript in which one animal has an extreme count (an outlier,
+detected with a measure called Cook's distance). That option is switched off here, so a single
+unusual animal cannot remove an RTK from the analysis; the test is run on every RTK.
+
+### Correcting for many tests: q-values
+
+A p-value below 0.05 happens by chance 5% of the time even when nothing is going on. Testing many
+transcripts at once therefore produces some false positives. The Benjamini-Hochberg method adjusts
+the p-values (the adjusted values are often called q-values) so that, among all the transcripts
+called significant, the expected proportion of false positives is at most 5%.
+
+The adjustment here is made across the RTK panel only (17 tests for *G. lateralis*, 23 for
+*C. maenas*), because the RTKs were chosen before the analysis and are the only transcripts the
+study asks about. This value, `q_targeted`, decides the call: an RTK is **molt-regulated** when it
+is below 0.05. The value adjusted across every transcript in the transcriptome,
+`q_transcriptomewide`, is adjusted over many more tests, so it is usually larger; it is reported
+alongside for comparison.
+
+### Question 2: which stages differ?
+
+For each molt-regulated RTK, every pair of stages is compared with a Wald test, which asks whether
+the difference between two stage averages is larger than the variability would explain. Because
+one RTK gets many pairwise comparisons, the p-values are adjusted again, within that RTK, with the
+Holm method; this keeps the chance of even one false positive among that RTK's comparisons at 5%
+or below.
+
+The results are summarized as compact letters above the bars: two stages that share a letter are
+not significantly different, and two stages with no letter in common are. For example, stages
+labeled "a", "ab" and "b" mean that the first and last differ and the middle one differs from
+neither. RTKs that are not molt-regulated get no letters.
+
+### Supplementary comparisons
+
+For Figures S1 to S5, the pipeline compares neighboring time points for all transcripts: each step
+of the cycle (IM to EP, EP to MP, and so on, including PM back to IM), each day after ablation
+against the day before, and the blocked animals against every MLA stage. Each comparison is
+shown as a volcano plot and an MA plot with the RTKs marked in red and the significant ones
+starred.
+
+The fold changes in these plots are "shrunken". A transcript with only a few reads can show a huge
+fold change from a small random difference; shrinkage pulls such unreliable estimates toward zero
+while leaving well-measured ones almost unchanged, so noisy low-count transcripts do not dominate
+the plots.
+
+A principal component analysis (PCA) of each group is saved too. PCA condenses the 500 most
+variable transcripts into two axes that summarize how similar the libraries are to each other
+overall.
+
+### Reading the main figures
+
+Each panel of Figures 1 to 16 is one RTK. The gray bars are the mean normalized TPM at each stage,
+the error bars are one standard error of the mean (a measure of how precisely the mean is known,
+which shrinks as more animals are sampled), and each dot is one animal. The ESA figures draw a
+line through the days instead of bars. Letters appear only above molt-regulated RTKs.
+
+### Automatic checks
+
+After every run, a validation script checks the output tables for consistency: one row per
+transcript and stage, sample counts that match the sample sheet, molt-regulated calls that match
+the q-values, and an explanation for every missing value. If any check fails, the run stops with
+an error instead of producing tables that might be wrong.
 
 ## Reference: input files
 
