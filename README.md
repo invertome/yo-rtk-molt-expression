@@ -1,43 +1,147 @@
 # Receptor tyrosine kinase expression across the crustacean molt cycle
 
-Code and data for the analysis of receptor tyrosine kinase (RTK) expression in the accompanying
-paper. The repository holds the sample sheets, the RTK gene panels, the configuration of each
-dataset, the analysis code, and the commands that regenerate every table and figure of the paper
-(Figures 1 to 16, Figures S1 to S5, Tables S1 and S2) from the Salmon quantifications.
+This repository holds the data, code and results behind the accompanying paper on receptor tyrosine
+kinase (RTK) expression in crabs. Everything needed to rebuild every table and figure of the paper
+(Figures 1 to 16, Figures S1 to S5, Tables S1 and S2) is here, except the large per-sample input
+files, which are on Zenodo (see "Step 3").
 
-**The question.** RTKs of the insulin, epidermal growth factor, fibroblast growth factor and
-PDGF/VEGF receptor families may carry molt-related signals to the tissues that drive the
-crustacean molt cycle. For each RTK transcript in each tissue or experiment, the analysis asks
-whether its expression changes across the molt cycle and, if it does, between which stages.
+You do not need to run anything to look at the results: the finished tables are in `results/` and
+`tables/`, and the figures are in `figures/`. The rest of this page explains the study in plain
+terms, defines the technical words, and walks through rerunning the analysis one step at a time.
 
-**The datasets.**
+## The study in plain terms
 
-- *Gecarcinus lateralis* (the blackback land crab): Y-organ (YO, the molting gland), 115
-  libraries in two experiments analyzed separately. In the multiple leg autotomy (MLA)
-  experiment, 54 animals were sampled at six stages: intermolt (IM), early premolt (EP),
-  mid-premolt (MP), late premolt (LP), postmolt (PM), and blocked animals (BL) that did not enter
-  premolt. Stages were assigned from the regeneration index (R) and the hemolymph ecdysteroid
-  titer. In the eyestalk ablation (ESA) experiment, 59 males were sampled at days 0, 1, 3, 5, 7, 14
-  and 19 after ablation; the intact animals are Day 0 controls. The panel holds 17 RTK
-  transcripts, one per gene.
-- *Carcinus maenas* (the green crab): 25 YO and 25 central nervous system (CNS) libraries from
-  paired tissues, at four molt stages: intermolt (IM), mid-premolt (MP), late premolt (LP) and
-  postmolt (PM). The panel holds 29 RTK transcripts of 23 genes; the transcripts of a gene are
-  summed and the gene is analyzed.
+Crabs grow by molting: they shed their hard shell and grow a new, larger one. Molting is
+controlled by a small gland, the **Y-organ** (YO), which makes the molting hormones
+(ecdysteroids). The YO's activity is controlled by signals from the rest of the body.
 
-## Reproduce
+**Receptor tyrosine kinases** are proteins that sit in the cell membrane and pass signals from
+outside the cell to the inside. Four RTK families are studied here: insulin receptors (InsR),
+epidermal growth factor receptors (EGFR), fibroblast growth factor receptors (FGFR), and
+PDGF/VEGF-related receptors (PVR). If the YO changes how much of these receptors it makes during
+the molt cycle, that is a hint that they help control molting.
 
-Work from the repository root, with the quantifications in place (see "Inputs"). The R side runs
-once per dataset:
+So for each RTK, in each tissue and experiment, the analysis asks two questions:
 
-    cp pipeline/site.env.example site.env      # optional: names the conda environment that holds R and pins the OpenBLAS kernel
+1. Does its expression change across the molt cycle?
+2. If it does, between which stages?
+
+### The animals and samples
+
+- ***Gecarcinus lateralis*** (the blackback land crab): 115 Y-organ libraries from two
+  experiments, analyzed separately.
+  - **Multiple leg autotomy (MLA).** Removing several legs makes a crab start a new molt cycle.
+    54 animals were sampled at six stages: intermolt (IM), early premolt (EP), mid-premolt (MP),
+    late premolt (LP), postmolt (PM), and blocked animals (BL) that did not enter premolt. Stages
+    were assigned from the regeneration index (how far the new limb buds have grown) and the
+    amount of molting hormone in the blood (hemolymph ecdysteroid titer).
+  - **Eyestalk ablation (ESA).** Removing the eyestalks removes a hormone that holds the YO back,
+    so molting starts. 59 males were sampled at days 0, 1, 3, 5, 7, 14 and 19 after ablation; the
+    intact animals are the Day 0 controls.
+  - The *G. lateralis* gene panel has 17 RTK transcripts, one per gene.
+- ***Carcinus maenas*** (the green crab): 25 YO and 25 central nervous system (CNS) libraries
+  from paired tissues, at four molt stages: IM, MP, LP and PM. The panel has 29 RTK
+  transcripts from 23 genes; when a gene has several transcripts, they are added together and the
+  gene is analyzed as one.
+
+## Key terms
+
+| Term | Meaning |
+| :--- | :--- |
+| Gene, transcript | A gene is a stretch of DNA; a transcript is an RNA copy of it. One gene can give several slightly different transcripts. Measuring transcripts tells us how actively a gene is used. |
+| RNA-seq, library | RNA sequencing reads millions of short pieces of RNA from a tissue sample. The set of reads from one sample is called a library. |
+| Salmon | A program that counts how many reads came from each transcript. Its output, one `quant.sf` file per library, is where this analysis starts. |
+| TPM | Transcripts per million: how much of a transcript there is, scaled so that libraries of different sizes can be compared. |
+| Normalized TPM | TPM corrected for differences in overall makeup between libraries (each library's TPM is divided by a "size factor"). The bar charts in the paper show normalized TPM. |
+| DESeq2 | A widely used R package for testing whether expression differs between groups of samples. It works on read counts and accounts for differences in library size. |
+| Likelihood-ratio test (LRT) | The test for question 1. It compares a model in which each stage has its own average with one in which all stages share a single average. A small p-value means expression changes across the cycle. |
+| Wald test | The test for question 2: it compares one stage with another. |
+| False discovery rate, q-value | When many genes are tested at once, some will look significant by chance. Adjusted p-values (q-values) correct for this; a transcript is called molt-regulated when its q-value is below 0.05. |
+| Compact letters | The letters above the bars. Stages that share a letter are not significantly different; stages with no letter in common are. |
+| Log2 fold change | How many times higher or lower expression is in one group than another, on a log2 scale (1 means twice as high, -1 means half). |
+| Volcano and MA plots | Two standard ways to show many genes at once in a comparison: fold change against significance (volcano), and fold change against average expression (MA). |
+| conda | A tool that installs programs and their exact versions into a separate "environment", so they do not conflict with other software on your computer. |
+| Configuration file | A plain-text file (`configs/*.yaml`) that tells the pipeline where the data are and which choices to use for each dataset. |
+
+## What is in this repository
+
+    configs/                 one settings file per species (glat.yaml, cmaenas.yaml)
+    data/glat/               G. lateralis sample sheet (samples.tsv) and RTK list (glat_rtk_genes.tsv)
+    data/cmaenas/            C. maenas sample sheet (cmaenas_samplesheet.tsv) and RTK list (cmaenas_panel_reps.tsv)
+    pipeline/                the analysis code (dge_panel_pipeline 1.0.5); pipeline/README.md explains it in depth
+    results/glat/            result tables for the MLA and ESA experiments
+    results/cmaenas/         result tables for the YO and CNS
+    figures/main/            Figures 1 to 16
+    figures/supplementary/   Figures S1 to S5
+    tables/                  Tables S1 and S2
+    species_photos/          crab silhouettes used on the figures, with their credits
+
+## Rerunning the analysis, step by step
+
+The commands below are typed into a terminal (Linux or macOS), from the top folder of this
+repository unless a step says otherwise. Each dataset takes about ten minutes on a computer with
+four cores.
+
+### Step 1. Get the repository
+
+    git clone https://github.com/invertome/yo-rtk-molt-expression.git
+    cd yo-rtk-molt-expression
+
+### Step 2. Install the software
+
+The statistics run in R and the figures are drawn in Python. If you do not have conda yet,
+install Miniconda or Miniforge first (both are free). Then create the R environment, which
+installs R and every package at the exact versions used for the paper:
+
+    conda env create -f pipeline/env_r.yaml
+
+This makes an environment named `dge_panel_r`. For the figures and tables you also need Python 3
+with pandas, matplotlib, numpy, PyYAML and Pillow, for example:
+
+    pip install pandas matplotlib numpy pyyaml pillow
+
+### Step 3. Download the input files
+
+The analysis starts from one Salmon `quant.sf` file per library. These files are too large for
+GitHub and are on Zenodo ([Zenodo DOI]); the raw reads are in the NCBI Sequence Read Archive under
+BioProject [SRA BioProject accession]. Put each file in its own folder, named as in the sample
+sheet:
+
+    data/glat/salmon_output/<filename>/quant.sf     <filename> = the "filename" column of data/glat/samples.tsv
+    data/cmaenas/salmon_output/<run>/quant.sf       <run> = the "run" column of data/cmaenas/cmaenas_samplesheet.tsv
+
+### Step 4. Tell the pipeline where R is
+
+Copy the example settings file and open the copy in a text editor:
+
+    cp pipeline/site.env.example site.env
+
+Fill in two lines: `CONDA_SH`, the path of conda's start-up script (it is
+`<conda folder>/etc/profile.d/conda.sh`, and `conda info --base` prints the conda folder), and
+`CONDA_ENV=dge_panel_r`. The file also sets `OPENBLAS_CORETYPE=HASWELL`, which makes the numbers
+come out identical on different computers (see "Software"). That setting applies to Intel and AMD
+processors only; on any other processor (for example ARM), comment it out and remove the `#` in
+front of `DGE_BLAS_PIN=none`.
+
+You can skip this step if `Rscript` from the `dge_panel_r` environment is already on your `PATH`
+(for example after `conda activate dge_panel_r`); the pipeline then says that the BLAS setting is
+unpinned.
+
+### Step 5. Run the statistics
+
+Run each species once:
+
     bash pipeline/run_pipeline.sh configs/glat.yaml
     bash pipeline/run_pipeline.sh configs/cmaenas.yaml
 
-Each run ends with `VALIDATION PASSED` and `PIPELINE DONE` and writes its tables to
-`results/glat/` or `results/cmaenas/`. A run takes about ten minutes on four cores. On a Slurm
-cluster, `pipeline/run_pipeline.sbatch` wraps the same script (see `pipeline/README.md`,
-"Running"). The tables and figures are then built from the results:
+A run that worked ends with `VALIDATION PASSED` and `PIPELINE DONE`, and its tables are in
+`results/glat/` or `results/cmaenas/`. If it stops with an error, the last lines of the output
+show what went wrong.
+
+On a computing cluster that uses Slurm, `pipeline/run_pipeline.sbatch` runs the same script as a
+job; `pipeline/README.md` ("Running") shows how.
+
+### Step 6. Build the tables and figures
 
     export BASE_LOCAL=.
     python3 pipeline/table_panel.py configs/glat.yaml    results/glat    tables
@@ -47,69 +151,53 @@ cluster, `pipeline/run_pipeline.sbatch` wraps the same script (see `pipeline/REA
     python3 pipeline/fig_supp.py    configs/glat.yaml    results/glat    figures/supplementary
     python3 pipeline/fig_supp.py    configs/cmaenas.yaml results/cmaenas figures/supplementary
 
-The expected molt-regulated counts are 4 of the 17 RTK transcripts in the MLA experiment, 6 of 17
-in the ESA experiment, 4 of the 23 RTK genes in the *C. maenas* YO, and 0 of 23 in the
-*C. maenas* CNS.
+### Step 7. Check the result
+
+The paper reports these numbers of molt-regulated RTKs; a correct rerun gives the same:
+4 of the 17 transcripts in the MLA experiment, 6 of 17 in the ESA experiment, 4 of the 23 genes
+in the *C. maenas* YO, and 0 of 23 in the *C. maenas* CNS. "Checking a rerun" below compares
+every table, value by value.
 
 ## How the analysis works
 
-`pipeline/README.md` describes the general method step by step. The choices for these datasets
-are set in `configs/glat.yaml` and `configs/cmaenas.yaml`, whose comments explain each value.
+This section summarizes the method; `pipeline/README.md` gives the full details, and the comments
+in `configs/glat.yaml` and `configs/cmaenas.yaml` explain each setting.
 
-1. **Four analysis units**, each fitted on its own: MLA and ESA for *G. lateralis*, YO and CNS
-   for *C. maenas*. The configuration gives the number of libraries expected at every stage, and
-   the run checks it against the sample sheet before any model is fitted.
-2. **Transcriptome-wide DESeq2 model** with one mean per stage, fitted to every quantified
-   transcript (for *C. maenas*, to every gene after summing its transcripts). Panel transcripts
-   stay in the fit even when barely expressed.
-3. **Test for a molt-stage effect.** A likelihood-ratio test compares that model with a reduced
-   model in which the stages share one mean. In the MLA experiment the blocked animals keep their
-   own mean in the reduced model, so they stay in the fit while the test asks only whether
-   expression varies across the five stages of the cycle. DESeq2's Cook's-distance outlier
-   exclusion is switched off in every test, so a single high-count animal cannot remove a
-   transcript from the analysis.
-4. **Which transcripts are molt-regulated.** The likelihood-ratio p-values of the panel
-   transcripts are adjusted across the panel only (Benjamini-Hochberg over 17 or 23 tests, the
-   targeted false discovery rate); a transcript is molt-regulated when that value is below 0.05.
-   The transcriptome-wide adjusted p-value is reported alongside but does not decide the call.
-5. **Where in the cycle expression changes.** For each molt-regulated transcript, every pair of
-   stages is compared with a Wald test, the p-values are adjusted within the transcript with the
-   Holm method, and the result is drawn as compact letters over the bars: stages that share a
-   letter do not differ. A transcript that is not molt-regulated has the same letter at every
-   stage in the letters table and no letters on the figures.
-6. **Supplementary comparisons.** For every step through the cycle (IM to EP, EP to MP, and so on,
-   including PM back to IM), for each day after ablation against the previous one, and for the
-   blocked animals against every MLA stage, the shrunken log2 fold changes of every transcript
-   are tabulated and drawn as volcano and MA plots with the panel transcripts marked (Figures S1
-   to S5). A principal component analysis of each unit is written alongside.
-7. **Validation.** After every run the output tables are checked for internal consistency (one
-   row per transcript and stage, sample counts equal to the sheet, calls equal to the adjusted
-   p-values, every missing test result explained); a failed check stops the run.
+1. **Four separate analyses.** MLA and ESA for *G. lateralis*, YO and CNS for *C. maenas*. Before
+   any statistics, the pipeline checks that the number of samples at every stage matches the
+   configuration.
+2. **One model for all genes.** DESeq2 is fitted to every transcript in the sample (for
+   *C. maenas*, every gene), not only the RTKs, with one average per stage. Using all genes gives
+   DESeq2 better estimates of how variable expression is. RTKs stay in the model even when
+   barely expressed.
+3. **Does expression change over the cycle?** The likelihood-ratio test compares that model with
+   one in which all stages share a single average. In the MLA experiment the blocked animals keep
+   their own average in both models, so the test asks only whether expression varies across the
+   five stages of the actual cycle. DESeq2 can automatically discard a gene in which one animal
+   has an extreme value (detected with Cook's distance); that option is switched off here, so a
+   single unusual animal cannot remove an RTK from the analysis.
+4. **Which RTKs are molt-regulated.** The p-values of the RTKs are adjusted for multiple testing
+   across the RTK panel only (Benjamini-Hochberg over the 17 or 23 RTKs). An RTK is molt-regulated
+   when that adjusted value (`q_targeted`) is below 0.05. The value adjusted across all genes
+   (`q_transcriptomewide`) is reported as well but does not decide the call.
+5. **Which stages differ.** For each molt-regulated RTK, every pair of stages is compared with a
+   Wald test, the p-values are adjusted within that RTK (Holm method), and the result is shown as
+   compact letters above the bars. RTKs that are not molt-regulated get no letters on the figures.
+6. **Supplementary comparisons.** Each step of the cycle (IM to EP, EP to MP, and so on, including
+   PM back to IM), each day after ablation against the day before, and the blocked animals against
+   every MLA stage are compared for all genes, and shown as volcano and MA plots with the RTKs
+   marked (Figures S1 to S5). A principal component analysis (a summary of overall similarity
+   between samples) is saved for each analysis too.
+7. **Automatic checks.** After every run the output tables are checked for consistency (one row
+   per transcript and stage, sample counts that match the sheet, calls that match the adjusted
+   p-values, every missing value explained). If a check fails, the run stops with an error rather
+   than producing doubtful tables.
 
-## Layout
+## Reference: input files
 
-    configs/                 one configuration file per dataset (glat.yaml, cmaenas.yaml)
-    data/glat/               samples.tsv (115 libraries) and glat_rtk_genes.tsv (the 17-transcript panel)
-    data/cmaenas/            cmaenas_samplesheet.tsv (50 libraries) and cmaenas_panel_reps.tsv (29 transcripts, 23 genes)
-    pipeline/                the analysis code (dge_panel_pipeline 1.0.5); see pipeline/README.md
-    species_photos/          species silhouettes drawn on the main figures, with attribution
-    results/glat/            DESeq2 output tables for MLA and ESA
-    results/cmaenas/         DESeq2 output tables for YO and CNS
-    figures/main/            Figures 1 to 16
-    figures/supplementary/   Figures S1 to S5
-    tables/                  Tables S1 and S2
+The details below are for readers who want to reuse the data or adapt the pipeline.
 
-## Inputs
-
-**Quantifications.** The pipeline starts from one Salmon `quant.sf` file per library. These files
-are not in the repository because of their size. Raw reads are in the NCBI Sequence Read Archive
-under BioProject [SRA BioProject accession], and the quantifications are on Zenodo
-([Zenodo DOI]). Place them as
-
-    data/glat/salmon_output/<filename>/quant.sf     one directory per row of data/glat/samples.tsv (column filename)
-    data/cmaenas/salmon_output/<run>/quant.sf       one directory per row of data/cmaenas/cmaenas_samplesheet.tsv (column run)
-
-The *G. lateralis* libraries were quantified with Salmon 1.10.2 and the *C. maenas* libraries
+**Quantifications.** One Salmon `quant.sf` file per library, placed as in "Step 3". The *G. lateralis* libraries were quantified with Salmon 1.10.2 and the *C. maenas* libraries
 with Salmon 1.10.3, both with automatic library-type detection.
 
 **Sample sheets.** `data/glat/samples.tsv` has one row per *G. lateralis* library:
@@ -137,7 +225,7 @@ transcript is partial. `data/cmaenas/cmaenas_panel_reps.tsv` lists the 29 *C. ma
 transcripts of 23 genes by gene, transcript identifier and family; each of the six genes with
 several transcripts is quantified as the sum of its transcripts.
 
-## Outputs
+## Reference: output files
 
 **Result tables** in `results/glat/` (units `MLA` and `ESA`; the unit column is `experiment`) and
 `results/cmaenas/` (units `YO` and `CNS`; the unit column is `tissue`). `<unit>` stands for one of
@@ -191,32 +279,30 @@ Markdown version writes the numbers in scientific notation.
 ## Software
 
 R 4.5.3 with DESeq2 1.50.2, tximport 1.38.2, readr 2.2.0, data.table 1.18.6.1, multcompView
-0.1-12, yaml 2.3.12 (`pipeline/env_r.yaml`); the exact resolved environment is listed in
-`env_explicit.txt`. The table and figure scripts need Python 3 with pandas, matplotlib, numpy,
-PyYAML and Pillow.
+0.1-12 and yaml 2.3.12 (`pipeline/env_r.yaml`); `env_explicit.txt` lists the exact environment
+used. The table and figure scripts need Python 3 with pandas, matplotlib, numpy, PyYAML and Pillow.
 
-The tables in `results/` are computed with the OpenBLAS kernel pinned
-(`OPENBLAS_CORETYPE=HASWELL`, set in `site.env`). Keep that setting to reproduce them to the last
-digit: OpenBLAS builds that select a CPU-specific kernel at run time round differently on
-different processor generations, which moves the last decimal places of the transcriptome-wide
-coefficient estimates. The figures use the Liberation fonts; without them matplotlib falls back to
-another typeface and the data drawn stay the same.
+**Why the numbers can differ in the last decimal places.** The tables in `results/` were computed
+with the OpenBLAS math library pinned to one processor setting (`OPENBLAS_CORETYPE=HASWELL`, set
+in `site.env`). Without it, OpenBLAS picks a setting to suit each processor, and different
+processors round slightly differently, which changes the last decimal places of some
+transcriptome-wide estimates. The figures use the Liberation
+fonts; if those are missing, matplotlib uses another typeface and the plotted data stay the same.
 
 ## Checking a rerun
 
-To check that a rerun reproduces the tables in `results/`, write the rerun to a separate
-directory and compare the two, table by table:
+To confirm that a rerun reproduces the tables in `results/`, write the rerun to a separate folder
+and compare the two, table by table:
 
     PIPELINE_OUT=tmp/rerun/glat    bash pipeline/run_pipeline.sh configs/glat.yaml
     PIPELINE_OUT=tmp/rerun/cmaenas bash pipeline/run_pipeline.sh configs/cmaenas.yaml
     python3 pipeline/compare_outputs.py results/glat    tmp/rerun/glat    --units MLA,ESA --name glat    --tag rtk
     python3 pipeline/compare_outputs.py results/cmaenas tmp/rerun/cmaenas --units YO,CNS  --name cmaenas --tag rtk
 
-`compare_outputs.py` compares text columns (letters, calls, sample names) exactly and numeric
-columns within a relative tolerance of 1e-6; p-values must also agree within 0.01 on the log10
-scale. It prints one line per table (PASS, or FAIL with the differing cells) and exits with
-status 0 only when every expected table passes. It does not compare the normalized-TPM columns or
-the size-factor files.
+`compare_outputs.py` prints one line per table: PASS, or FAIL with the cells that differ. Text
+columns (letters, calls, sample names) must match exactly; numbers must agree within a relative
+difference of 1e-6, and p-values also within 0.01 on the log10 scale. It exits with status 0 only
+when every table passes. It does not compare the normalized-TPM columns or the size-factor files.
 
 ## Attribution
 
