@@ -10,7 +10,7 @@ library versions produce in the last decimal places, but not by more than the to
 get one extra rule, because very small p-values carry their information in the exponent: two
 p-values must also agree within 0.01 on the log10 scale. The result is one line per expected
 table (PASS, FAIL with the offending cells, SKIPPED, EXTRA or N/A) and a one-line summary; the
-exit status is 0 only when every expected table passed. The details follow.
+exit status is 0 only when every expected table passed.
 
 --tag is the config's panel_tag and selects the per-unit panel tables.
 Canonicalizes column names (sample->sampleid, rep_ids->id, experiment|tissue->unit,

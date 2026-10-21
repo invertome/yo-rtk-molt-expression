@@ -9,7 +9,7 @@
 #
 # Machine-specific settings come from a site file, ./site.env in the current directory or the file
 # named by DGE_SITE_ENV (template: site.env.example). It may name the conda environment that holds
-# R and the BLAS setting; without a site file the Rscript found on PATH is used and the BLAS kernel
+# R and the BLAS setting. Without a site file the Rscript found on PATH is used and the BLAS kernel
 # is left unpinned, which the script says out loud.
 #
 # Environment variables that change where things are, all optional:
@@ -35,7 +35,7 @@ if [ -n "${CONDA_ENV:-}" ]; then
 fi
 set -u
 # BLAS setting (see assert_blas_pin in lib_dge.R): either OPENBLAS_CORETYPE pins one kernel, or
-# DGE_BLAS_PIN=none opts out on purpose. With a site file that sets neither, stop; with no site
+# DGE_BLAS_PIN=none opts out on purpose. With a site file that sets neither, stop. With no site
 # file at all, run unpinned and say so.
 if [ -n "${OPENBLAS_CORETYPE:-}" ]; then export OPENBLAS_CORETYPE
 elif [ "${DGE_BLAS_PIN:-}" = none ]; then export DGE_BLAS_PIN

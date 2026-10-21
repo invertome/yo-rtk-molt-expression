@@ -36,7 +36,7 @@ ROOT = os.environ.get("BASE_LOCAL", os.path.abspath(os.path.join(os.path.dirname
 FIG = CFG["figures"]; UCOL = CFG["unit_col"]; UNITS = list(CFG["units"].keys())
 
 # Register the Liberation fonts wherever the system keeps them, so that the figures look the same
-# on every machine that has them; without them matplotlib falls back to the next font in the lists
+# on every machine that has them. Without them matplotlib falls back to the next font in the lists
 # set by style_rc (the data drawn are unaffected).
 for f in fm.findSystemFonts():
     if os.path.basename(f).startswith(("LiberationSerif", "LiberationSans")):
@@ -87,7 +87,7 @@ def dec_for(ymax):  return 1 if ymax >= 1 else (2 if ymax >= 0.1 else 3)   # dec
 # ---- compact-letter (significance) placement ----
 # Each letter starts a few points above its own error-bar cap (mean + SEM). It is then moved up by
 # the smallest amount that clears any real overlap with a dot, a neighboring bar or letter, or the
-# top of the frame; if the letters still do not fit, the y-axis is extended a little and the
+# top of the frame. If the letters still do not fit, the y-axis is extended a little and the
 # placement is solved again.
 LETTER_BASE_PT = 3.0     # letter baseline seats this many points above the error-bar cap
 LETTER_STEP_PT = 1.0     # minimal upward nudge increment (points)
@@ -258,7 +258,7 @@ def draw(family, unit, style):
         ax.set_ylabel("Normalized TPM", fontsize=s["axlab"])
         ax.set_title(disp(gene), fontstyle="italic", fontsize=s["title"], pad=6)
 
-        if molt_reg:                                            # compact-letter display over molt-regulated panels
+        if molt_reg:                                            # compact-letter display over regulated panels
             caps = [m + (0.0 if np.isnan(se) else se) for m, se in zip(means, sems)]   # error-bar caps
             if unit_cfg.get("x_axis", "categorical") == "categorical":
                 bar_boxes = [(xi - bar_w/2, xi + bar_w/2, m) for xi, m in zip(x, means)]

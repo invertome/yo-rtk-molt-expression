@@ -4,7 +4,7 @@
 # expression change across the stages of an experiment (for example the stages of a molt cycle, or
 # the days after a treatment)? It answers it with DESeq2, fitted transcriptome-wide, and reports the panel
 # genes in detail. The functions below are used by dge_panel.R, supp_contrasts.R and
-# validate_outputs.R. None of them reads or writes files; they only check the configuration, build
+# validate_outputs.R. None of them reads or writes files. They only check the configuration, build
 # the statistical models, compute TPM size factors, and turn p-values into the summary columns of
 # the output tables.
 #
@@ -56,7 +56,7 @@ read_config <- function(path) {
   if (!identical(cfg$shrinkage, "normal")) stop("shrinkage must be normal (the only shrinkage method the environment installs), got ", cfg$shrinkage)
   if (!length(cfg$units)) stop("config has no units")
   # panel_tag is the word used in the names of the panel tables (<unit>_<tag>_letters.tsv and
-  # friends). It defaults to "panel"; a project may choose another word (for example kin).
+  # friends). It defaults to "panel", and a project may choose another word (for example kin).
   cfg$panel_tag <- if (is.null(cfg$panel_tag)) "panel" else as.character(cfg$panel_tag)
   if (length(cfg$panel_tag) != 1L || !grepl("^[A-Za-z0-9_]+$", cfg$panel_tag))
     stop("panel_tag must be one word of letters, digits or underscores, got '", paste(cfg$panel_tag, collapse=","), "'")
@@ -89,7 +89,7 @@ read_config <- function(path) {
       stop("unit ", u, ": extra contrast must be two known levels, got ", paste(ct, collapse=","))
     # Two optional safety settings. exclude_levels lists values of the stage column that are known to
     # be in the sample sheet but deliberately left out of the analysis (for example a sex or a
-    # condition outside the design); any other unexpected value stops the run. expected_n gives the
+    # condition outside the design). Any other unexpected value stops the run. expected_n gives the
     # number of samples expected at each level; dge_panel.R compares it with what the sheet actually
     # provides, so a wrong or outdated sheet stops the run before any model is fitted.
     unit$exclude_levels <- as.character(unlist(unit$exclude_levels))
@@ -115,13 +115,13 @@ read_config <- function(path) {
 #
 # The full model gives every level its own mean expression. The reduced model gives one shared
 # mean to all the levels that belong to the stage test, and keeps a separate mean for each level
-# listed in `outside` (for example animals that were blocked from progressing through the cycle:
-# they stay in the fit, so they contribute to the dispersion estimates, but the test does not ask
+# listed in `outside` (for example animals that were blocked from progressing through the cycle.
+# They stay in the fit, so they contribute to the dispersion estimates, but the test does not ask
 # whether they differ from the cycle). The likelihood-ratio test then asks whether letting the
 # stage levels have different means explains the counts better than one shared mean does. When
 # `outside` is empty the reduced model is the usual intercept-only model.
 #
-# Both models are returned as design matrices, which DESeq2 accepts directly; the degrees of
+# Both models are returned as design matrices, which DESeq2 accepts directly. The degrees of
 # freedom of the test is the difference in the number of columns. The last check confirms that the
 # reduced model is genuinely a special case of the full one (otherwise the test would be invalid).
 reduced_matrix <- function(cd, level_col, outside) {
@@ -159,7 +159,7 @@ targeted_stats <- function(res, ids, alpha) {
 #
 # `praw` holds the raw p-values of every pairwise Wald test between two stages, named "A-B". They
 # are adjusted for multiple testing within the gene (Holm by default) and then summarized as the
-# familiar letter groupings: two stages that share a letter are not significantly different, two
+# familiar letter groupings. Two stages that share a letter are not significantly different, and two
 # stages with no letter in common are. The letters are returned in the order of `lv`, which is the
 # order the stages are drawn in the figures.
 letters_for <- function(praw, lv, method, alpha, label) {
@@ -187,7 +187,7 @@ contrasts_for_unit <- function(unit) {
 # R does its linear algebra through a BLAS library. Some builds of OpenBLAS pick a CPU-specific
 # code path at run time, and different paths round in slightly different ways, so the same data
 # can give estimates that differ in the last decimal places from one machine to another. Setting
-# OPENBLAS_CORETYPE pins one code path and makes a run reproducible everywhere it can run;
+# OPENBLAS_CORETYPE pins one code path and makes a run reproducible everywhere it can run.
 # DGE_BLAS_PIN=none says explicitly that this does not matter for the current run. With neither
 # set the run stops here rather than produce numbers that cannot be reproduced exactly.
 assert_blas_pin <- function() {

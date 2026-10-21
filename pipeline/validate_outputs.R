@@ -8,15 +8,15 @@
 # sample sheet, a gene is marked regulated exactly when its targeted false discovery rate is below
 # alpha, only regulated genes carry more than one letter, and every gene without a test result
 # has an identifiable reason (no counts). Normalized TPM must agree with plain TPM divided by
-# the library's factor in the size-factor file. Stage means and SEM must agree with sample values;
-# SEM is NA only for a stage with one library.
+# the library's factor in the size-factor file. Stage means and SEM must agree with sample values,
+# and SEM is NA only for a stage with one library.
 # Any failed check prints a FAIL line and makes the script exit with status 1, which makes
 # run_pipeline.sh stop before declaring the run done. WARN lines report oddities worth a look
 # that do not invalidate the run.
 suppressMessages({library(DESeq2); library(data.table); library(yaml)})
 args <- commandArgs(trailingOnly=TRUE)
 if (!length(args) %in% 1:2) stop("usage: Rscript validate_outputs.R <config.yaml> [output_dir]")
-PIPE <- Sys.getenv("DGE_PIPELINE_DIR")   # package root; falls back to this script's own directory
+PIPE <- Sys.getenv("DGE_PIPELINE_DIR")   # package root (falls back to this script's own directory)
 if (!nzchar(PIPE)) { f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)); PIPE <- if (length(f)) dirname(normalizePath(f[1])) else "." }
 source(file.path(PIPE, "lib_dge.R"))
 cfg <- read_config(args[1]); BASE <- Sys.getenv("BASE", cfg$base)
@@ -88,7 +88,7 @@ for (uname in names(cfg$units)) {
   }
   # Normalized summaries must be present, finite and nonnegative, except for the undefined SEM
   # of a stage with one library. Means and SEM must describe the samples of that gene and stage.
-  # The tolerance is relative to the expected value; an expected zero must match exactly.
+  # The tolerance is relative to the expected value. An expected zero must match exactly.
   st_ok <- TRUE
   for (col in c("mean_ntpm", "sem_ntpm")) {
     if (!col %in% names(st)) {

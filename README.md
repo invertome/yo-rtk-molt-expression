@@ -68,7 +68,7 @@ So for each RTK, in each tissue and experiment, the analysis asks two questions:
     configs/                 one settings file per species (glat.yaml, cmaenas.yaml)
     data/glat/               G. lateralis sample sheet (samples.tsv) and RTK list (glat_rtk_genes.tsv)
     data/cmaenas/            C. maenas sample sheet (cmaenas_samplesheet.tsv) and RTK list (cmaenas_panel_reps.tsv)
-    pipeline/                the analysis code (dge_panel_pipeline 1.0.5); pipeline/README.md explains it in depth
+    pipeline/                the analysis code (dge_panel_pipeline 1.0.6); pipeline/README.md explains it in depth
     results/glat/            result tables for the MLA and ESA experiments
     results/cmaenas/         result tables for the YO and CNS
     figures/main/            Figures 1 to 16

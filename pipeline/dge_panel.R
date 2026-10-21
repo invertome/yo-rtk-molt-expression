@@ -22,7 +22,7 @@
 suppressMessages({library(tximport); library(DESeq2); library(data.table); library(multcompView); library(yaml)})
 args <- commandArgs(trailingOnly=TRUE)
 if (length(args) != 1) stop("usage: Rscript dge_panel.R <config.yaml>")
-PIPE <- Sys.getenv("DGE_PIPELINE_DIR")   # directory holding lib_dge.R; defaults to this script's own directory
+PIPE <- Sys.getenv("DGE_PIPELINE_DIR")   # directory holding lib_dge.R (defaults to this script's own directory)
 if (!nzchar(PIPE)) { f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)); PIPE <- if (length(f)) dirname(normalizePath(f[1])) else "." }
 source(file.path(PIPE, "lib_dge.R"))
 assert_blas_pin()                          # refuse to run with an unpinned, unreproducible BLAS setup
@@ -133,7 +133,7 @@ run_unit <- function(uname, meta) {
   if (length(absent)) stop(uname, ": panel features absent from the quantification: ", paste(absent, collapse=","))
 
   # Transcriptome-wide fit. Features are kept when at least as many samples as the smallest stage group
-  # have 10 or more counts; the panel features are always kept so that every panel gene is reported
+  # have 10 or more counts. The panel features are always kept so that every panel gene is reported
   # even when it is barely expressed. DESeq() estimates size factors, dispersions and the per-stage
   # means for the full model.
   dds <- DESeqDataSetFromTximport(txi, colData=cd, design=~stage)
@@ -141,7 +141,7 @@ run_unit <- function(uname, meta) {
   keep <- (rowSums(counts(dds) >= 10) >= minN) | (rownames(dds) %in% feats)   # force-retain the panel
   dds  <- dds[keep, ]; dds <- DESeq(dds)
   # Likelihood-ratio test for a stage effect (see reduced_matrix in lib_dge.R for the two models).
-  # Cook's-distance outlier exclusion is switched off on purpose: with few samples per stage a single
+  # Cook's-distance outlier exclusion is switched off on purpose. With few samples per stage a single
   # high-count animal would otherwise remove a gene from the test without any warning in the tables.
   mm <- reduced_matrix(as.data.frame(colData(dds)), "stage", outside)
   if (mm$df != length(lv) - length(outside) - 1L)

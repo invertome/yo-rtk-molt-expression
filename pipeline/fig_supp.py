@@ -6,16 +6,16 @@ Usage: python fig_supp.py <config.yaml> <directory with the *_dge_*.tsv tables> 
 For each entry of figures.supplement in the config, one figure is drawn for one unit and saved as
 <filename>.png and <filename>.pdf (the entry's filename key, by default Fig<tag>_<unit>_dge). Each
 row of the figure is one comparison (each stage against the previous one, the closing step of a
-cycle when configured, or the extra comparisons of the config); the left column is a volcano plot
+cycle when configured, or the extra comparisons of the config). The left column is a volcano plot
 (log2 fold change against -log10 of the adjusted p-value) and the right column an MA plot (log2
-fold change against mean expression). Every feature of the transcriptome is a gray point; the
-panel genes are red points; a panel gene whose transcriptome-wide adjusted p-value is below alpha
+fold change against mean expression). Every feature of the transcriptome is a gray point, and the
+panel genes are red points. A panel gene whose transcriptome-wide adjusted p-value is below alpha
 in that comparison (the rtk_sig column of the table) is drawn as a star with its name.
 
-The gray background clouds are rasterized inside the PDF to keep the files small; everything
+The gray background clouds are rasterized inside the PDF to keep the files small, and everything
 else stays vector. The script also writes <name>_stars.json, which lists for each figure (by filename)
 the (comparison, gene) pairs that received a star, so the starred genes can be checked against
-the rtk_sig column of the tables. A missing table is an error; nothing is drawn from made-up data.
+the rtk_sig column of the tables. A missing table is an error, so nothing is drawn from made-up data.
 """
 import os, sys, glob
 import numpy as np, pandas as pd
@@ -80,7 +80,7 @@ def _split(d):
     return d[~d.is_rtk], rk
 
 def _label(ax, sig, xcol, ycol):
-    """label significant panel genes, nudging vertically to reduce overlap."""
+    """Label significant panel genes, nudging vertically to reduce overlap."""
     if sig.empty: return
     yr = ax.get_ylim(); dx = (ax.get_xlim()[1]-ax.get_xlim()[0])*0.012; dy = (yr[1]-yr[0])*0.045
     used = []

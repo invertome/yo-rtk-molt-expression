@@ -19,7 +19,7 @@ import pandas as pd, yaml
 
 SUP = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")   # superscript digits for the Markdown exponents
 def sci(x):
-    """Format a p-value for the Markdown table, e.g. 3.1 × 10⁻¹¹; NA stays the text NA."""
+    """Format a p-value for the Markdown table, e.g. 3.1 × 10⁻¹¹. NA stays the text NA."""
     if pd.isna(x): return "NA"
     if x == 0:     return "0"
     e = math.floor(math.log10(abs(x))); m = round(x / 10**e, 1)
@@ -35,7 +35,7 @@ def main(cfg_path, data, out):
     disp = cfg.get("figures", {}).get("display_names", {}) or {}
     fam_order = cfg["figures"]["family_order"]
     # Collect the test statistics of every gene in every unit from the letters tables (one row per
-    # gene is enough: the statistics are repeated on each stage row).
+    # gene is enough, because the statistics are repeated on each stage row).
     rows_by = {}; families = {}
     for u in units:
         d = pd.read_csv(f"{data}/{u}_{tag}_letters.tsv", sep="\t").drop_duplicates("gene")
@@ -46,7 +46,7 @@ def main(cfg_path, data, out):
         families = dict(zip(panel.gene, panel.family)); panel_order = list(dict.fromkeys(panel.gene))
     else:
         families = {g: re.sub(r"[0-9].*$", "", re.sub(r"^[A-Za-z]+-", "", disp.get(g, g))) for g in genes_in_order}; panel_order = genes_in_order
-    # Row order, then the rows themselves: the regulated call is recomputed here from q_targeted so
+    # Row order, then the rows themselves. The regulated call is recomputed here from q_targeted so
     # that the table cannot disagree with the letters tables.
     if cfg["tables"]["order"] == "panel": genes = [g for g in panel_order if (g, units[0]) in rows_by]
     else: genes = sorted(genes_in_order, key=lambda g: (fam_order.index(families[g]), disp.get(g, g)))

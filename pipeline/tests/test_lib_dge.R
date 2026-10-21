@@ -4,7 +4,7 @@
 # what the statistics require. The size-factor group checks agreement with DESeq2 and rejection of
 # invalid libraries. Output checks cover the factor file, normalized summaries and singleton stages.
 # Each test builds a small example and checks its result or error text. Run it from the package
-# directory with `Rscript tests/test_lib_dge.R`; it prints one line per passed group and stops at
+# directory with `Rscript tests/test_lib_dge.R`. It prints one line per passed group and stops at
 # the first failure.
 suppressMessages({library(data.table); library(yaml); library(multcompView); library(DESeq2)})
 source(file.path(Sys.getenv("DGE_PIPELINE_DIR", "."), "lib_dge.R"))

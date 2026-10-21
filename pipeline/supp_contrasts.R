@@ -14,15 +14,15 @@
 suppressMessages({library(DESeq2); library(data.table); library(yaml)})
 args <- commandArgs(trailingOnly=TRUE)
 if (length(args) != 1) stop("usage: Rscript supp_contrasts.R <config.yaml>")
-PIPE <- Sys.getenv("DGE_PIPELINE_DIR")   # package root; falls back to this script's own directory
+PIPE <- Sys.getenv("DGE_PIPELINE_DIR")   # package root (falls back to this script's own directory)
 if (!nzchar(PIPE)) { f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)); PIPE <- if (length(f)) dirname(normalizePath(f[1])) else "." }
 source(file.path(PIPE, "lib_dge.R"))
 assert_blas_pin()
 cfg <- read_config(args[1]); BASE <- Sys.getenv("BASE", cfg$base); ODIR <- file.path(BASE, cfg$output_dir)
 panel <- fread(file.path(BASE, cfg$panel))
 # Panel annotation keyed by feature: the gene itself when transcripts were summed per gene, the
-# transcript otherwise. (The `else` must stay on the first line: at the top level R treats an `if`
-# as complete at a line break.)
+# transcript otherwise. (The `else` must stay on the first line, because at the top level R treats
+# an `if` as complete at a line break.)
 ann <- if (isTRUE(cfg$panel_aggregate)) unique(panel[, .(feature=gene, gene, family)]) else
        panel[, .(feature=transcript_id, gene, family)]
 if (nrow(ann) != uniqueN(ann$feature)) stop("panel annotation is not one row per feature (a gene listed with two families?)")
@@ -38,7 +38,7 @@ for (uname in names(cfg$units)) {
                      res=results(dds, contrast=c("stage", ct[1], ct[2]), cooksCutoff=FALSE), type=cfg$shrinkage)
     dt <- as.data.table(as.data.frame(res), keep.rownames="feature")
     dt <- merge(dt, ann, by="feature", all.x=TRUE)
-    # is_rtk marks the panel features (the column name is fixed whatever the panel is);
+    # is_rtk marks the panel features (the column name is fixed whatever the panel is).
     # rtk_sig marks the panel features whose transcriptome-wide adjusted p is below alpha in THIS comparison.
     # These are the genes starred and labeled on the supplementary plots.
     dt[, is_rtk := !is.na(gene)]

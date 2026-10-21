@@ -22,8 +22,8 @@ panel_tag: panel              # one word used in the names of the panel tables (
 output_dir: dge_output        # where the R scripts write, relative to base
 
 # ---- statistics -----------------------------------------------------------------------------
-alpha: 0.05                   # significance threshold: a panel gene is regulated when its targeted false
-                              # discovery rate is below alpha; the same threshold builds the letters
+alpha: 0.05                   # significance threshold. A panel gene is regulated when its targeted false
+                              # discovery rate is below alpha, and the same threshold builds the letters
 pairwise_adjust: holm         # adjustment of the pairwise p-values within each regulated gene: holm or BH
 shrinkage: normal             # fold-change shrinkage for the supplementary tables: normal
 
@@ -36,8 +36,8 @@ units:
                               # "does expression change across the stages" (for example blocked animals)
     closing_contrast: true    # also compare the first stage against the last (a cycle) in the supplement
     extra_contrasts: []       # further [later, earlier] pairs for the supplement, for example [[BL, L1]]
-    exclude_levels: []        # values of level_col that are in the sheet on purpose but not analyzed;
-                              # any other unexpected value stops the run
+    exclude_levels: []        # values of level_col that are in the sheet on purpose but not analyzed.
+                              # Any other unexpected value stops the run
     expected_n: {L1: 5, L2: 5, L3: 5, L4: 5}   # optional: libraries expected per stage, checked before any fit
     x_axis: categorical       # categorical: one bar per stage; numeric: a line over a numeric axis
     x_label: Stage            # axis title on the main figures
@@ -56,7 +56,7 @@ figures:
   silhouette: silhouette.png  # image drawn in a corner of every main figure, relative to base
   silhouette_label: Species name              # caption under the silhouette (italic)
   fixed_ylim: {}              # optional y-axis maxima for the manuscript style, one per panel:
-                              # {FamA/T1: [6, 6, 6, 6]}; panels without an entry scale to their data
+                              # {FamA/T1: [6, 6, 6, 6]}. Panels without an entry scale to their data
   display_names: {}           # gene names to show differently from the panel file: {old: new}
   supplement:                 # one supplementary figure per entry: volcano and MA plots of a unit's
                               # transitions (or extra contrasts), with the panel genes marked
