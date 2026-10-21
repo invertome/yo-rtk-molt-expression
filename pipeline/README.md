@@ -43,10 +43,20 @@ an experiment) named in the configuration.
    principal component analysis of the variance-stabilized counts.
 8. **The output is validated**: every gene appears once at every stage, the sample counts agree
    with the sheet, the regulated calls agree with the adjusted p-values, and every gene without a
-   test result has an identifiable reason. The run is declared done only when this passes.
+   test result has an identifiable reason. The size-factor files cover every library and agree
+   with the per-sample factors. Normalized TPM equals plain TPM divided by its factor, and stage
+   means and SEM agree with the per-sample normalized values (SEM is NA for a single library).
+   The run is declared done only when these checks pass.
 9. **Figures and tables** are then drawn from the output tables by the Python scripts: the main
-   figures (mean and standard error of TPM per stage, with the letters), the supplementary volcano
+   figures (mean and standard error of normalized TPM per stage, with the letters), the supplementary volcano
    and MA plots, and the significance table.
+
+For each unit, normalized TPM uses median-of-ratios size factors computed by
+`DESeq2::estimateSizeFactorsForMatrix` on the transcript-level TPM matrix of all transcripts.
+With gene aggregation enabled, a separate transcript-level import supplies that matrix. Each
+library's exported panel TPM is divided by its factor, matched by sample ID, before computing
+stage means and SEM (`sd / sqrt(n)`). The main figures plot these normalized values; plain TPM
+is still exported alongside them.
 
 ## Files
 
@@ -57,7 +67,7 @@ an experiment) named in the configuration.
 | `dge_panel.R` | steps 1 to 6: checks, import, fits, test, targeted FDR, letters, TPM tables |
 | `supp_contrasts.R` | step 7: pairwise tables and PCA, from the fits saved by `dge_panel.R` |
 | `validate_outputs.R` | step 8: consistency checks on the output tables |
-| `lib_dge.R` | shared functions: configuration checks, the reduced model, the targeted FDR, the letters |
+| `lib_dge.R` | shared functions: configuration checks, TPM size factors, the reduced model, the targeted FDR, the letters |
 | `fig_main.py` | main figures, one per gene family and unit, in two styles |
 | `fig_supp.py` | supplementary volcano and MA plots |
 | `table_panel.py` | the significance table (TSV and Markdown) |
@@ -201,8 +211,9 @@ The R scripts write these tables into `output_dir`, for every unit `<unit>` (wit
 | File | Columns |
 | :--- | :--- |
 | `<unit>_<tag>_letters.tsv` | `gene`; the unit column; `stage`; `letter` (the compact letter of the gene at that stage); `lrt_p` (raw p-value of the likelihood-ratio test); `q_targeted` (that p-value adjusted across the panel, the number that decides the call); `q_transcriptomewide` (DESeq2's transcriptome-wide adjusted p-value); `molt_regulated` (`TRUE` when `q_targeted` is below `alpha`). The test statistics are repeated on every stage row of the gene. |
-| `<unit>_<tag>_tpm_by_stage.tsv` | `gene`; `id` (the transcript, or the summed transcripts joined by `;`); the unit column; `stage`; `n` (libraries at that stage); `mean_tpm`; `sem_tpm` |
-| `<name>_<tag>_persample_tpm.tsv` | `gene`; `id`; the unit column; `sampleid`; `stage`; `tpm` of every library, all units together |
+| `<unit>_<tag>_tpm_by_stage.tsv` | `gene`; `id` (the transcript, or the summed transcripts joined by `;`); the unit column; `stage`; `n` (libraries at that stage); `mean_tpm`; `sem_tpm`; `mean_ntpm`; `sem_ntpm` (mean and SEM of normalized TPM) |
+| `<name>_<tag>_persample_tpm.tsv` | `gene`; `id`; the unit column; `sampleid`; `stage`; `tpm` of every library, all units together; `tpm_sizefactor`; `ntpm` (`tpm / tpm_sizefactor`) |
+| `<unit>_<tag>_tpm_sizefactors.tsv` | `sampleid`; `stage`; `tpm_sizefactor`: one row per library of the unit |
 | `<name>_<tag>_panel.tsv` | only with `panel_aggregate: true`: `gene_id`; `rep_ids` (the transcripts summed, joined by `;`); `n_reps` |
 | `<unit>_deseq2_LRT_all.tsv` | every feature of the transcriptome-wide test: `feature`; `baseMean` (mean normalized count); `log2FoldChange` and `lfcSE` (the last stage against the first, a by-product of the fit that the test does not depend on); `stat` (likelihood-ratio statistic); `pvalue`; `padj` (transcriptome-wide Benjamini-Hochberg) |
 | `<unit>_dge_<A>_vs_<B>.tsv` | one file per pairwise comparison, `A` relative to `B`, every feature: `feature`; `baseMean`; `log2FoldChange` (shrunken); `lfcSE`; `stat` (Wald statistic); `pvalue`; `padj`; `gene` and `family` (panel features only); `is_rtk` (`TRUE` for a panel feature; the column name is fixed whatever the panel is); `rtk_sig` (`TRUE` for a panel feature with `padj` below `alpha` in this comparison; these are the starred genes of the supplement); the unit column; `contrast` |
@@ -214,7 +225,7 @@ The Python scripts write:
 
 | File | Content |
 | :--- | :--- |
-| `<figure_dir>/<style_dir>/<filename>.png` and `.pdf` | main figures, one per family and unit: mean and standard error of TPM per stage (bars or a line), the letters over regulated genes, one dot per animal in the enhanced style. PNG at 300 dpi; PDF with vector graphics and embedded fonts |
+| `<figure_dir>/<style_dir>/<filename>.png` and `.pdf` | main figures, one per family and unit: mean and standard error of normalized TPM per stage (bars or a line), the letters over regulated genes, one dot per animal in the enhanced style. PNG at 300 dpi; PDF with vector graphics and embedded fonts |
 | `<figure_dir>/supplementary/<filename>.png` and `.pdf` (default `Fig<tag>_<unit>_dge`) | supplementary figures: one row per comparison, volcano plot left, MA plot right; panel genes in red, significant ones starred and named. `<name>_stars.json` next to them lists the starred (comparison, gene) pairs |
 | `<table_dir>/<name>.tsv` and `.md` | the significance table: `gene`, `family`, the unit column, `LRT_p`, `q_targeted`, `q_transcriptomewide`, `molt_regulated`; the Markdown version formats the numbers in scientific notation |
 
@@ -228,8 +239,9 @@ lists the checks.
 
     python3 compare_outputs.py <reference_dir> <new_dir> --units U1,U2 --name <name> --tag <panel_tag>
 
-It compares every expected table row by row: text columns exactly, numeric columns within a
-relative tolerance (default 1e-6) that absorbs floating-point noise between machines, and
+It compares the v1.0.4 columns of the expected tables row by row; it does not compare the
+normalized-TPM columns or the size-factor file. It compares text columns exactly, numeric columns
+within a relative tolerance (default 1e-6) that absorbs floating-point noise between machines, and
 p-values also within 0.01 on the log10 scale. It prints one line per table (PASS, FAIL with the
 offending cells, SKIPPED, EXTRA, N/A) and exits with status 0 only when every expected table
 passed. The docstring at the top of the script has the details.

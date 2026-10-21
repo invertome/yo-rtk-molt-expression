@@ -3,14 +3,14 @@
 
 Usage: fig_main.py <config.yaml> <directory with the panel tables> <figure directory>
 
-Each figure is a grid with one panel per gene of the family. A panel shows the mean TPM at each
-stage with its standard error: as bars when the unit's stages are categories (x_axis:
+Each figure is a grid with one panel per gene of the family. A panel shows the mean normalized
+TPM at each stage with its standard error: as bars when the unit's stages are categories (x_axis:
 categorical), as a line over a numeric axis when the stages are time points (x_axis: numeric,
 the number read from the stage name with numeric_from). Above a regulated gene the compact
 letters from the letters table are placed over the error bars; stages that share a letter do not
 differ significantly. Two styles are drawn: "manuscript" (serif font, gray bars, few ticks, and
 optionally fixed y-axis maxima so that related panels share a scale) and "enhanced" (sans-serif
-font, pale bars, one dot per animal). Family order, figure numbers, filenames, style
+font, gray bars, one dot per animal). Family order, figure numbers, filenames, style
 directories, display names and the species silhouette all come from the figures block of the
 config. The silhouette sits in an empty grid cell when the family leaves one, otherwise in the
 top-right margin. Output: one PNG (300 dpi) and one PDF (vector, fonts embedded) per figure.
@@ -62,7 +62,6 @@ pts = pd.read_csv(f"{DATA}/{CFG['name']}_{TAG}_persample_tpm.tsv", sep="\t")
 SILP = os.path.join(ROOT, FIG["silhouette"]); SIL = Image.open(SILP); SIL_LABEL = FIG["silhouette_label"]
 SIL_ASPECT = SIL.size[0] / SIL.size[1]           # width / height of the silhouette image
 SIL_W_IN   = 0.66                                 # silhouette width in inches, the same on every figure
-ACCENT = "#35618E"
 FIG_NUM = {tuple(k.split("/")): v for k, v in FIG["figure_numbers"].items()}
 FIXED_YLIM = {tuple(k.split("/")): v for k, v in (FIG.get("fixed_ylim") or {}).items()}
 STYLE_DIRS = FIG.get("style_dirs") or {"manuscript": "manuscript", "enhanced": "enhanced"}
@@ -183,7 +182,7 @@ def draw(family, unit, style):
     genes = genes_by_fam[family]; n = len(genes)
     nc = NCOLS[family]; nr = math.ceil(n / nc)
     figw, figh = (8.3 if nc >= 4 else 7.0), 2.7*nr   # widen the compact 4-column grid (still one page wide)
-    ws = 0.70 if nc >= 4 else 0.36                    # open the column gap so each 'TPM' label clears its neighbor
+    ws = 0.70 if nc >= 4 else 0.36                    # open the column gap so each y-axis label clears its neighbor
     s = SZ[style]; style_rc(style)
     unit_cfg = CFG["units"][unit]; stage_order = unit_cfg["levels"]
     fig, axes = plt.subplots(nr, nc, figsize=(figw, figh))
@@ -197,7 +196,7 @@ def draw(family, unit, style):
         gene = genes[i]
         sub  = tp[tp.gene == gene].set_index("stage").reindex(stage_order)
         lsub = le[le.gene == gene].set_index("stage").reindex(stage_order)
-        means = sub.mean_tpm.values.astype(float); sems = sub.sem_tpm.values.astype(float)
+        means = sub.mean_ntpm.values.astype(float); sems = sub.sem_ntpm.values.astype(float)
         molt_reg = is_true(lsub.molt_regulated.iloc[0]); letters = lsub.letter.values
         pg = pts[(pts[UCOL] == unit) & (pts.gene == gene)]
         # The y-axis maximum: fixed by the config for the manuscript style when given (so related
@@ -210,7 +209,7 @@ def draw(family, unit, style):
         elif style == "manuscript":
             ymax = nice_ceil(mm * 1.05)
         else:
-            dmax = float(np.nanmax(pg.tpm.values)) if len(pg) else 0.0
+            dmax = float(np.nanmax(pg.ntpm.values)) if len(pg) else 0.0
             ymax = nice_ceil(max(mm, dmax) * 1.05)
 
         # Two kinds of x-axis. Categorical stages: bars at 0, 1, 2, ... Numeric stages: a line over the
@@ -222,13 +221,13 @@ def draw(family, unit, style):
             if style == "manuscript":                               # ---- gray bars, black error bars ----
                 ax.bar(x, means, color="#585858", edgecolor="black", lw=0.9, width=bar_w, zorder=2)
                 ax.errorbar(x, means, yerr=sems, fmt="none", ecolor="black", capsize=3.5, lw=1.1, zorder=3)
-            else:                                                   # ---- pale bars, per-animal dots ----
-                ax.bar(x, means, color="#E4E9F0", edgecolor="none", width=bar_w, zorder=1)
+            else:                                                   # ---- gray bars, per-animal dots ----
+                ax.bar(x, means, color="#9E9E9E", edgecolor="none", width=bar_w, zorder=1)
                 for xi, st in enumerate(stage_order):
-                    yv = pg[pg.stage == st].tpm.values
+                    yv = pg[pg.stage == st].ntpm.values
                     jit = (np.random.RandomState(xi+7).rand(len(yv)) - 0.5) * 0.28
                     xj = xi + jit
-                    ax.scatter(xj, yv, s=9, color=ACCENT, alpha=0.75, edgecolor="none", zorder=3)
+                    ax.scatter(xj, yv, s=9, color="black", alpha=0.75, edgecolor="none", zorder=3)
                     dot_xy.extend(zip(xj.tolist(), yv.tolist()))
                 ax.errorbar(x, means, yerr=sems, fmt="none", ecolor="#2b2b2b", capsize=2, lw=0.9, zorder=4)
             ax.set_xticks(x); ax.set_xticklabels(stage_order, fontsize=s["tick"])
@@ -241,12 +240,12 @@ def draw(family, unit, style):
                 ax.errorbar(xd, means, yerr=sems, fmt="o", ms=6, color="black", ecolor="black", capsize=3.5, lw=1.1, zorder=3)
             else:
                 for j, st in enumerate(stage_order):
-                    yv = pg[pg.stage == st].tpm.values
+                    yv = pg[pg.stage == st].ntpm.values
                     jit = (np.random.RandomState(j+7).rand(len(yv)) - 0.5) * 0.5
-                    ax.scatter(xd[j]+jit, yv, s=8, color=ACCENT, alpha=0.35, edgecolor="none", zorder=2)
+                    ax.scatter(xd[j]+jit, yv, s=8, color="#808080", alpha=0.45, edgecolor="none", zorder=2)
                     dot_xy.extend(zip((xd[j]+jit).tolist(), yv.tolist()))
-                ax.plot(xd, means, color=ACCENT, lw=1.5, zorder=3)
-                ax.errorbar(xd, means, yerr=sems, fmt="o", ms=4.5, color=ACCENT, ecolor=ACCENT, capsize=2, lw=0.9, zorder=4)
+                ax.plot(xd, means, color="black", lw=1.5, zorder=3)
+                ax.errorbar(xd, means, yerr=sems, fmt="o", ms=4.5, color="black", ecolor="black", capsize=2, lw=0.9, zorder=4)
             ax.set_xlim(-1, xd.max() + 1); ax.set_xticks([t for t in range(0, int(xd.max()) + 1, 5)])
             ax.xaxis.set_minor_locator(MultipleLocator(1))
             ax.tick_params(axis="x", which="minor", length=(3 if style == "manuscript" else 2.2), width=(1.0 if style == "manuscript" else 0.7))
@@ -256,7 +255,7 @@ def draw(family, unit, style):
             ax.yaxis.set_major_locator(MaxNLocator(nbins=4, steps=[1,2,2.5,3,5,10]))   # fewer, cleaner ticks
             d = dec_for(ymax)
             ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _p, d=d: f"{v:.{d}f}"))
-        ax.set_ylabel("TPM", fontsize=s["axlab"])
+        ax.set_ylabel("Normalized TPM", fontsize=s["axlab"])
         ax.set_title(disp(gene), fontstyle="italic", fontsize=s["title"], pad=6)
 
         if molt_reg:                                            # compact-letter display over molt-regulated panels

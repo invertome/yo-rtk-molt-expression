@@ -5,7 +5,8 @@
 # the days after a treatment)? It answers it with DESeq2, fitted transcriptome-wide, and reports the panel
 # genes in detail. The functions below are used by dge_panel.R, supp_contrasts.R and
 # validate_outputs.R. None of them reads or writes files; they only check the configuration, build
-# the statistical models, and turn p-values into the summary columns of the output tables.
+# the statistical models, compute TPM size factors, and turn p-values into the summary columns of
+# the output tables.
 #
 # Vocabulary used in the comments:
 #   unit      one analysis run: a tissue or an experiment with its own set of samples
@@ -13,6 +14,33 @@
 #   panel     the genes of interest, listed in the panel TSV
 #   feature   one row of the quantification (a transcript, or a gene after summing transcripts)
 suppressMessages({library(data.table)})
+
+# Estimate one TPM size factor for each library from all transcripts in the unit.
+# DESeq2 compares each transcript with its geometric mean across libraries, then takes the median
+# of those ratios for each library. Keep the library names so callers can match factors to samples
+# by name. Missing or invalid values stop the run instead of producing misleading normalized TPM.
+tpm_size_factors <- function(abundance) {
+  libraries <- colnames(abundance)
+  if (is.null(libraries)) stop("TPM matrix has no column names for libraries (columns ",
+                                paste(seq_len(ncol(abundance)), collapse=","), ")")
+  bad <- which(is.na(libraries) | !nzchar(libraries))
+  if (length(bad)) stop("TPM matrix has a missing column name for library column ", paste(bad, collapse=","))
+  dup <- unique(libraries[duplicated(libraries)])
+  if (length(dup)) stop("TPM matrix has duplicated library names: ", paste(dup, collapse=","))
+  bad <- libraries[colSums(is.na(abundance)) > 0]
+  if (length(bad)) stop("TPM abundance has NA values for library: ", paste(bad, collapse=","))
+  bad <- libraries[colSums(abundance < 0) > 0]
+  if (length(bad)) stop("TPM abundance has negative values for library: ", paste(bad, collapse=","))
+  bad <- libraries[colSums(!is.finite(abundance)) > 0]
+  if (length(bad)) stop("TPM abundance has non-finite values for library: ", paste(bad, collapse=","))
+  bad <- libraries[colSums(abundance > 0) == 0]
+  if (length(bad)) stop("TPM abundance is all zero for library: ", paste(bad, collapse=","))
+  sf <- tryCatch(DESeq2::estimateSizeFactorsForMatrix(abundance), error=function(e)
+    stop("TPM size factors for libraries ", paste(libraries, collapse=","), ": ", conditionMessage(e)))
+  bad <- libraries[!is.finite(sf) | sf <= 0]
+  if (length(bad)) stop("TPM size factor must be finite and positive for library: ", paste(bad, collapse=","))
+  sf
+}
 
 # Read one YAML configuration file and check it before anything is computed.
 # Every key the pipeline reads is listed in configs/example.yaml. A missing key, an unknown key

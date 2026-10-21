@@ -91,7 +91,7 @@ are set in `configs/glat.yaml` and `configs/cmaenas.yaml`, whose comments explai
     configs/                 one configuration file per dataset (glat.yaml, cmaenas.yaml)
     data/glat/               samples.tsv (115 libraries) and glat_rtk_genes.tsv (the 17-transcript panel)
     data/cmaenas/            cmaenas_samplesheet.tsv (50 libraries) and cmaenas_panel_reps.tsv (29 transcripts, 23 genes)
-    pipeline/                the analysis code (dge_panel_pipeline 1.0.4); see pipeline/README.md
+    pipeline/                the analysis code (dge_panel_pipeline 1.0.5); see pipeline/README.md
     species_photos/          species silhouettes drawn on the main figures, with attribution
     results/glat/            DESeq2 output tables for MLA and ESA
     results/cmaenas/         DESeq2 output tables for YO and CNS
@@ -146,8 +146,9 @@ those names.
 | File | Columns |
 | :--- | :--- |
 | `<unit>_rtk_letters.tsv` | one row per RTK transcript and stage: `gene`; the unit column; `stage`; `letter` (compact letter at that stage); `lrt_p` (raw p-value of the likelihood-ratio test); `q_targeted` (adjusted across the panel; the call is made on it); `q_transcriptomewide` (DESeq2's adjusted p-value across all transcripts, the transcriptome-wide false discovery rate); `molt_regulated` (`TRUE` when `q_targeted` is below 0.05). The test values repeat on every stage row of a transcript. |
-| `<unit>_rtk_tpm_by_stage.tsv` | `gene`; `id` (the transcript, or the summed transcripts joined by `;`); the unit column; `stage`; `n` (libraries at that stage); `mean_tpm`; `sem_tpm` (standard error of the mean) |
-| `glat_rtk_persample_tpm.tsv`, `cmaenas_rtk_persample_tpm.tsv` | the transcripts per million (TPM) of every RTK transcript in every library: `gene`; `id`; the unit column; `sampleid`; `stage`; `tpm` |
+| `<unit>_rtk_tpm_by_stage.tsv` | `gene`; `id` (the transcript, or the summed transcripts joined by `;`); the unit column; `stage`; `n` (libraries at that stage); `mean_tpm`; `sem_tpm` (standard error of the mean); `mean_ntpm`; `sem_ntpm` (mean and standard error of normalized TPM) |
+| `glat_rtk_persample_tpm.tsv`, `cmaenas_rtk_persample_tpm.tsv` | the transcripts per million (TPM) of every RTK transcript in every library: `gene`; `id`; the unit column; `sampleid`; `stage`; `tpm`; `tpm_sizefactor`; `ntpm` (normalized TPM, `tpm / tpm_sizefactor`) |
+| `<unit>_rtk_tpm_sizefactors.tsv` | `sampleid`; `stage`; `tpm_sizefactor`: one row per library of the unit, the median-of-ratios size factor computed by DESeq2 (`estimateSizeFactorsForMatrix`) on the TPM of all transcripts |
 | `cmaenas_rtk_panel.tsv` | *C. maenas* only: `gene_id`; `rep_ids` (the transcripts summed for that gene, joined by `;`); `n_reps` |
 | `<unit>_deseq2_LRT_all.tsv` | the likelihood-ratio test of every transcript: `feature`; `baseMean` (mean normalized count); `log2FoldChange` and `lfcSE` (the last stage against the first, a by-product of the fit that the test does not depend on); `stat` (likelihood-ratio statistic); `pvalue`; `padj` (transcriptome-wide Benjamini-Hochberg) |
 | `<unit>_dge_<A>_vs_<B>.tsv` | one file per pairwise comparison, `A` relative to `B` (a positive fold change means higher expression in `A`), every transcript: `feature`; `baseMean`; `log2FoldChange` (shrunken); `lfcSE`; `stat` (Wald statistic); `pvalue`; `padj`; `gene` and `family` (RTK transcripts only); `is_rtk` (`TRUE` for an RTK transcript); `rtk_sig` (`TRUE` for an RTK transcript with `padj` below 0.05 in this comparison; these are the starred transcripts in Figures S1 to S5); the unit column; `contrast` |
@@ -172,8 +173,8 @@ embedded at 600 dpi).
 | `figures/supplementary/FigS4_Cm_YO_transitions` | Figure S4: *C. maenas* YO, consecutive molt stages |
 | `figures/supplementary/FigS5_Cm_CNS_transitions` | Figure S5: *C. maenas* CNS, consecutive molt stages |
 
-In Figures 1 to 16, each panel shows one RTK transcript: pale bars give the mean TPM at each stage
-with its standard error, one dot per library, and compact letters over the molt-regulated
+In Figures 1 to 16, each panel shows one RTK transcript: gray bars give the mean normalized TPM at
+each stage with its standard error, one dot per library, and compact letters over the molt-regulated
 transcripts; the ESA figures draw a line over days instead of bars. In Figures S1 to S5, each row
 is one pairwise comparison, with a volcano plot on the left (log2 fold change against -log10
 adjusted p-value) and an MA plot on the right (log2 fold change against mean expression); every
@@ -214,7 +215,8 @@ directory and compare the two, table by table:
 `compare_outputs.py` compares text columns (letters, calls, sample names) exactly and numeric
 columns within a relative tolerance of 1e-6; p-values must also agree within 0.01 on the log10
 scale. It prints one line per table (PASS, or FAIL with the differing cells) and exits with
-status 0 only when every expected table passes.
+status 0 only when every expected table passes. It does not compare the normalized-TPM columns or
+the size-factor files.
 
 ## Attribution
 

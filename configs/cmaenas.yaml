@@ -42,7 +42,7 @@ units:
 figures:
   family_order: [InsR, EGFR, FGFR, PVR]     # insulin, epidermal growth factor, fibroblast growth factor, PDGF/VEGF receptor families
   panel_label: RTK                          # how the panel genes are called in the supplementary legends
-  styles: [enhanced]                        # pale bars (mean and standard error) with one dot per library
+  styles: [enhanced]                        # gray bars (mean and standard error of normalized TPM) with one dot per library
   style_dirs: {enhanced: ""}                # write the figures directly into the figure directory (figures/main)
   filename: "Fig{n:02d}_Cm_{family}_{unit}" # Fig09_Cm_InsR_YO and so on (two-digit figure number)
   ncols: {PVR: 4}                           # the PVR family has eight genes: four panels per row

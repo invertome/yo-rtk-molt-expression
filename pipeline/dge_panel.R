@@ -15,8 +15,8 @@
 #      targeted false discovery rate) and call a panel gene regulated when that rate is below alpha.
 #   5. For each regulated gene, compare every pair of stages with a Wald test, adjust within the gene
 #      (Holm by default), and summarize the result as compact letters.
-#   6. Write the per-stage mean and SEM of TPM, the per-sample TPM, the transcriptome-wide test table and the
-#      fitted model object.
+#   6. Write the per-stage mean and SEM of plain and normalized TPM, the per-sample values, the TPM
+#      size factors, the transcriptome-wide test table and the fitted model object.
 # Output filenames use the unit name and the panel_tag of the configuration, for example
 # T1_panel_letters.tsv when the unit is T1 and the tag is panel.
 suppressMessages({library(tximport); library(DESeq2); library(data.table); library(multcompView); library(yaml)})
@@ -115,6 +115,19 @@ run_unit <- function(uname, meta) {
   txi <- if (isTRUE(cfg$panel_aggregate))
            tximport(files, type="salmon", tx2gene=as.data.frame(t2g), txOut=FALSE, dropInfReps=TRUE)
          else tximport(files, type="salmon", txOut=TRUE, dropInfReps=TRUE)
+  # TPM normalization uses all transcripts before any gene aggregation or feature filtering.
+  # When the model uses summed genes, import the transcripts separately for these factors only.
+  txi_tx <- if (isTRUE(cfg$panel_aggregate))
+              tximport(files, type="salmon", txOut=TRUE, dropInfReps=TRUE)
+            else txi
+  sf <- tpm_size_factors(txi_tx$abundance)
+  rm(txi_tx)
+  if (length(sf) != length(meta$sampleid) || !setequal(names(sf), meta$sampleid))
+    stop(uname, ": TPM size-factor names do not match sample ids; missing: ",
+         paste(setdiff(meta$sampleid, names(sf)), collapse=","), "; unexpected: ",
+         paste(setdiff(names(sf), meta$sampleid), collapse=","))
+  cat(sprintf("[%s] TPM size factors: %d libraries; min=%.6g median=%.6g max=%.6g\n",
+              uname, length(sf), min(sf), median(sf), max(sf)))
   feats <- unname(feat_of)
   absent <- feats[!feats %in% rownames(txi$abundance)]
   if (length(absent)) stop(uname, ": panel features absent from the quantification: ", paste(absent, collapse=","))
@@ -155,7 +168,8 @@ run_unit <- function(uname, meta) {
     inr <- feats[feats %in% rownames(r)]; pmat[inr, j] <- r[inr, "pvalue"]
   }
 
-  # Per gene: mean and SEM of TPM at each stage, TPM of every sample, and the letters. A gene that
+  # Per gene: mean and SEM of plain and normalized TPM at each stage, values for every sample, and
+  # the letters. Divide each sample's TPM by its own factor, matched by library name. A gene that
   # is not regulated gets the same letter at every stage (no pairwise comparison is claimed for it).
   tpm <- txi$abundance; stats <- list(); letters <- list(); persample <- list()
   for (i in seq_along(genes)) {
@@ -163,9 +177,12 @@ run_unit <- function(uname, meta) {
     for (s in lv) {
       cols <- meta$sampleid[meta$stage == s]
       vals <- as.numeric(tpm[feat, cols])
+      factors <- unname(sf[cols]); nvals <- vals / factors
       stats[[length(stats)+1]] <- data.table(gene=gene, id=id, unit=uname, stage=s, n=length(cols),
-                                             mean_tpm=mean(vals), sem_tpm=sd(vals)/sqrt(length(vals)))
-      persample[[length(persample)+1]] <- data.table(gene=gene, id=id, unit=uname, sampleid=cols, stage=s, tpm=vals)
+                                             mean_tpm=mean(vals), sem_tpm=sd(vals)/sqrt(length(vals)),
+                                             mean_ntpm=mean(nvals), sem_ntpm=sd(nvals)/sqrt(length(nvals)))
+      persample[[length(persample)+1]] <- data.table(gene=gene, id=id, unit=uname, sampleid=cols, stage=s, tpm=vals,
+                                                    tpm_sizefactor=factors, ntpm=nvals)
     }
     reg <- st[id == feat, molt_regulated]
     let <- if (isTRUE(reg)) letters_for(pmat[feat, ], lv, cfg$pairwise_adjust, cfg$alpha, paste(uname, gene))
@@ -180,6 +197,8 @@ run_unit <- function(uname, meta) {
   setnames(stt, "unit", cfg$unit_col); setnames(le, "unit", cfg$unit_col); setnames(ps, "unit", cfg$unit_col)
   persample_all[[uname]] <<- ps
   fwrite(stt, file.path(ODIR, paste0(uname, "_", TAG, "_tpm_by_stage.tsv")), sep="\t")
+  sft <- data.table(sampleid=meta$sampleid, stage=as.character(meta$stage), tpm_sizefactor=unname(sf[meta$sampleid]))
+  fwrite(sft, file.path(ODIR, paste0(uname, "_", TAG, "_tpm_sizefactors.tsv")), sep="\t")
   fwrite(le,  file.path(ODIR, paste0(uname, "_", TAG, "_letters.tsv")), sep="\t")
   fwrite(as.data.table(res_lrt, keep.rownames="feature"), file.path(ODIR, paste0(uname, "_deseq2_LRT_all.tsv")), sep="\t")
   # The fitted model, a variance-stabilized version of the counts (used for the PCA), and the
